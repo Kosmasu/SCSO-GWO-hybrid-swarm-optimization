@@ -1,0 +1,16 @@
+[project]
+name = "scso-gwo-hybrid-swarm-optimization"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ipykernel>=6.29.5",
+    "matplotlib>=3.10.1",
+    "mealpy>=3.0.1",
+    "numpy<2",
+    "opfunu>=1.0.4",
+    "scikit-learn>=1.6.1",
+    "seaborn>=0.13.2",
+    "setuptools>=78.1.0",
+]
