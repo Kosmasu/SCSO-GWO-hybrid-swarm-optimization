@@ -41,7 +41,6 @@ class GWO_SCSO_Hybrid(Optimizer):
             self.pop = self.generate_population(self.pop_size)
 
         ### Your additional code can be implemented here
-        self.mean_pos = np.mean([agent[self.ID_POS] for agent in self.pop])
 
     def evolve(self, epoch):
         """
