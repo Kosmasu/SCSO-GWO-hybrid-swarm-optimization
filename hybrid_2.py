@@ -15,8 +15,8 @@ class HybridIGWOSCSO(Optimizer):
     based on stagnation detection.
 
     References:
-    - GWO: Mirjalili, S., Mirjalili, S.M. and Lewis, A., 2014. Grey wolf optimizer.
-           Advances in engineering software, 69, pp.46-61.
+    - IGWO: Kaveh, A. & Zakian, P.. (2018). Improved GWO algorithm for optimal design of truss structures.
+        Engineering with Computers. 34. 10.1007/s00366-017-0567-1.
     - SCSO: Seyyedabbasi, A., & Kiani, F. (2022). Sand Cat swarm optimization:
             a nature-inspired algorithm to solve global optimization problems.
     """
