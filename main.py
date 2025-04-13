@@ -1,6 +1,6 @@
 from mealpy import PSO, FFA, ABC, GWO, SCSO
 
-from obj_functions import Squared
+from problems import Squared
 
 problem = Squared(
     lb=-100,
@@ -11,7 +11,7 @@ problem = Squared(
     name="Squared_10d",
 )
 
-EPOCH = 1000
+EPOCH = 9999
 POPULATION = 30
 
 # Particle Swarm Optimization (PSO)
