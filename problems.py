@@ -8,7 +8,7 @@ These functions can be used with the mealpy optimization library.
 
 import os
 from typing import Union
-from mealpy import Problem, FloatVar, PSO
+from mealpy import Problem, FloatVar, GWO
 import numpy as np
 from mealpy.utils.space import BaseVar
 
@@ -35,10 +35,13 @@ class CustomProblem(Problem):
         ub: float,
         dimensions: int,
         save_population=True,
+        minmax="min",
         **kwargs,
     ):
         bounds = FloatVar(ub=(ub,) * dimensions, lb=(lb,) * dimensions, name="bounds")
-        super().__init__(bounds, "min", save_population=save_population, **kwargs)
+        super().__init__(
+            bounds, minmax=minmax, save_population=save_population, **kwargs
+        )
         self.name = kwargs.get("name", "CustomProblem")
 
 
@@ -55,7 +58,6 @@ class Squared(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -78,7 +80,6 @@ class StyblinskiTang(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -112,7 +113,6 @@ class StornChebyshev(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -168,7 +168,6 @@ class InverseHilbert(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -222,7 +221,6 @@ class LennardJones(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -270,7 +268,6 @@ class Rastrigin(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -297,7 +294,6 @@ class Griewank(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -328,7 +324,6 @@ class Weierstrass(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -377,7 +372,6 @@ class ModifiedSchwefel(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -424,7 +418,6 @@ class ExpandedSchaffer(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -466,7 +459,6 @@ class HappyCat(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -500,7 +492,6 @@ class Ackley(CustomProblem):
             ub=ub,
             lb=lb,
             dimensions=dimensions,
-            minmax="min",
             save_population=save_population,
             **kwargs,
         )
@@ -599,8 +590,8 @@ class RosenbrockVariant1(Problem):
 
 
 if __name__ == "__main__":
-    problem = Squared(-10, 10, 5, minmax="min", name="Squared", data="Amazing")
-    model = PSO.OriginalPSO(epoch=300, pop_size=20)
+    problem = Rastrigin(-10, 10, 10)
+    model = GWO.OriginalGWO(epoch=9999, pop_size=100)
     g_best = model.solve(problem)
 
     if not model.problem or not model.history:
