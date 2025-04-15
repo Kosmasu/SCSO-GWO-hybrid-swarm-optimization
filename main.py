@@ -22,7 +22,7 @@ from hybrid_2 import HybridIGWOSCSO  # IMPROVED GWO + SCSO
 from hybrid_v3 import HybridGWOSCSO3  # HYBRID GWO - SCSO With SCSO starting phase
 
 EPOCH = 99999
-POPULATION = [25, 50, 75]
+POPULATION = [20, 50, 70]
 DIMENSION = [2, 5, 10, 20, 30, 50, 100]
 ITERATIONS = 30
 PROBLEMS: list[type[CustomProblem]] = [

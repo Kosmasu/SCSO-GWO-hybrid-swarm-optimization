@@ -329,15 +329,12 @@ class Weierstrass(CustomProblem):
             **kwargs,
         )
         self.name = kwargs.get("name", f"Weierstrass_{dimensions}d")
-        self.a = 0.5
-        self.b = 3
-        self.kmax = 20
 
     def obj_func(self, x):
         D = len(x)
-        a = self.a
-        b = self.b
-        kmax = self.kmax
+        a = 0.5
+        b = 3
+        kmax = 20
 
         # First sum term
         sum1 = 0
