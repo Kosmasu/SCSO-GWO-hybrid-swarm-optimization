@@ -36,6 +36,7 @@ class CustomProblem(Problem):
         dimensions: int = 10,
         save_population=True,
         minmax="min",
+        
         **kwargs,
     ):
         bounds = FloatVar(ub=(ub,) * dimensions, lb=(lb,) * dimensions, name="bounds")

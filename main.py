@@ -72,6 +72,11 @@ header = [
     "fitness_diff_to_gt"
 ]
 
+term_dict = {
+    "max_early_stop": 50,
+    "epsilon": 1e-10
+}
+
 with open(csv_file, mode="w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(header)
