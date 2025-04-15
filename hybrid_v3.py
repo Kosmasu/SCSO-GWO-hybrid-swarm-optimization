@@ -20,7 +20,7 @@ class HybridGWOSCSO3(Optimizer):
             a nature-inspired algorithm to solve global optimization problems.
     """
 
-    def __init__(self, epoch=10000, pop_size=100, stagnation_limit=10, **kwargs):
+    def __init__(self, epoch=10000, pop_size=100, stagnation_limit=10, initial_scso=0.4, **kwargs):
         """
         Args:
             epoch (int): maximum number of iterations, default = 10000
@@ -33,6 +33,9 @@ class HybridGWOSCSO3(Optimizer):
         self.stagnation_limit = self.validator.check_int("stagnation_limit", stagnation_limit, [1, 100])
         self.set_parameters(["epoch", "pop_size", "stagnation_limit"])
         self.sort_flag = False
+        self.scso_run = epoch*initial_scso # limit the initial SCSO exploration
+        #if epoch*initial_scso > 50: # If you need hard limit use this.
+        #    self.scso_run = 50
     
     def initialize_variables(self):
         """Initialize support variables for the algorithm"""
@@ -46,7 +49,7 @@ class HybridGWOSCSO3(Optimizer):
         self.stagnation_count = 0
         self.best_fitness_history = []
         self.current_phase = "scso"  # Start with SCSO phase        
-        self.scso_run = 50 # limit the initial SCSO exploration
+        #self.scso_run = 50 # limit the initial SCSO exploration
         self.startwithscso = 1
 
         #Variable to control recovery transition
