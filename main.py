@@ -1,4 +1,4 @@
-from mealpy import PSO, FFA, ABC, GWO, SCSO
+from mealpy import PSO, GA, DE, GWO, SCSO
 
 from mealpy.optimizer import Optimizer
 import csv
@@ -47,8 +47,8 @@ def initialize_problem(
 
 MODELS: list[type[Optimizer]] = [
     PSO.OriginalPSO,
-    FFA.OriginalFFA,
-    ABC.OriginalABC,
+    GA.BaseGA,
+    DE.OriginalDE,
     GWO.OriginalGWO,
     SCSO.OriginalSCSO,
     HybridGWOSCSO,
