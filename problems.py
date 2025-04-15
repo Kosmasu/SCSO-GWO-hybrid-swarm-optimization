@@ -31,9 +31,9 @@ Different optimization algorithms (like the swarm algorithm you mentioned) can b
 class CustomProblem(Problem):
     def __init__(
         self,
-        lb: float,
-        ub: float,
-        dimensions: int,
+        lb: float = -100,
+        ub: float = 100,
+        dimensions: int = 10,
         save_population=True,
         minmax="min",
         **kwargs,
@@ -48,9 +48,9 @@ class CustomProblem(Problem):
 class Squared(CustomProblem):
     def __init__(
         self,
-        lb: float,
-        ub: float,
-        dimensions: int,
+        lb: float = -100,
+        ub: float = 100,
+        dimensions: int = 10,
         save_population=True,
         **kwargs,
     ):
@@ -67,80 +67,80 @@ class Squared(CustomProblem):
         return np.sum(x**2)
 
 
-class StyblinskiTang(CustomProblem):
-    def __init__(
-        self,
-        lb: float,
-        ub: float,
-        dimensions: int,
-        save_population=True,
-        **kwargs,
-    ):
-        super().__init__(
-            ub=ub,
-            lb=lb,
-            dimensions=dimensions,
-            save_population=save_population,
-            **kwargs,
-        )
-        self.name = kwargs.get("name", f"Styblinski_Tang{dimensions}d")
+# class StyblinskiTang(CustomProblem):
+#     def __init__(
+#         self,
+#         lb: float = -100,
+#         ub: float = 100,
+#         dimensions: int = 10,
+#         save_population=True,
+#         **kwargs,
+#     ):
+#         super().__init__(
+#             ub=ub,
+#             lb=lb,
+#             dimensions=dimensions,
+#             save_population=save_population,
+#             **kwargs,
+#         )
+#         self.name = kwargs.get("name", f"Styblinski_Tang{dimensions}d")
 
-    def obj_func(self, x):
-        return 0.5 * np.sum(x**4 - 16 * x**2 + 5 * x)
+#     def obj_func(self, x):
+#         return 0.5 * np.sum(x**4 - 16 * x**2 + 5 * x)
 
 
-class StornChebyshev(CustomProblem):
-    """
-    Storn's Chebyshev Polynomial Fitting Problem (Function 1)
-    Note: Only defined for D = 9 and other specific dimensions
-    """
+# class StornChebyshev(CustomProblem):
+#     """
+#     Storn's Chebyshev Polynomial Fitting Problem (Function 1)
+#     Note: Only defined for D = 9 and other specific dimensions
+#     """
 
-    def __init__(
-        self,
-        lb: float = -8192,
-        ub: float = 8192,
-        dimensions: int = 9,
-        save_population=True,
-        **kwargs,
-    ):
-        # Check if dimensions are valid (D = 9 for the document)
-        if dimensions != 9:
-            raise ValueError(
-                "StornChebyshev function is specifically defined for D = 9 in this challenge"
-            )
+#     def __init__(
+#         self,
+#         lb: float = -8192,
+#         ub: float = 8192,
+#         dimensions: int = 9,
+#         save_population=True,
+#         **kwargs,
+#     ):
+#         # Check if dimensions are valid (D = 9 for the document)
+#         if dimensions != 9:
+#             raise ValueError(
+#                 "StornChebyshev function is specifically defined for D = 9 in this challenge"
+#             )
 
-        super().__init__(
-            ub=ub,
-            lb=lb,
-            dimensions=dimensions,
-            save_population=save_population,
-            **kwargs,
-        )
-        self.name = kwargs.get("name", f"StornChebyshev_{dimensions}d")
-        self.d = 72.661  # Specific for D = 9
+#         super().__init__(
+#             ub=ub,
+#             lb=lb,
+#             dimensions=dimensions,
+#             save_population=save_population,
+#             **kwargs,
+#         )
+#         self.name = kwargs.get("name", f"StornChebyshev_{dimensions}d")
+#         self.d = 72.661  # Specific for D = 9
 
-    def obj_func(self, x):
-        D = len(x)
-        m = 32 * D
+#     def obj_func(self, x):
+#         D = len(x)
+#         m = 32 * D
 
-        # Calculate p1
-        u = sum(x[j] * (1.2) ** (D - j - 1) for j in range(D))
-        p1 = (u - self.d) ** 2 if u < self.d else 0
+#         # Calculate p1
+#         u = sum(x[j] * (1.2) ** (D - j - 1) for j in range(D))
+#         p1 = (u - self.d) ** 2 if u < self.d else 0
 
-        # Calculate p2
-        v = sum(x[j] * (-1.2) ** (D - j - 1) for j in range(D))
-        p2 = (v - self.d) ** 2 if v < self.d else 0
+#         # Calculate p2
+#         v = sum(x[j] * (-1.2) ** (D - j - 1) for j in range(D))
+#         p2 = (v - self.d) ** 2 if v < self.d else 0
 
-        # Calculate p3
-        p3 = 0
-        for k in range(m + 1):
-            w_k = sum(x[j] * (2 * k / m - 1) ** (D - j - 1) for j in range(D))
-            if w_k > 1:
-                p3 += (w_k - 1) ** 2
-            elif w_k < -1:
-                p3 += (w_k + 1) ** 2
+#         # Calculate p3
+#         p3 = 0
+#         for k in range(m + 1):
+#             w_k = sum(x[j] * (2 * k / m - 1) ** (D - j - 1) for j in range(D))
+#             if w_k > 1:
+#                 p3 += (w_k - 1) ** 2
+#             elif w_k < -1:
+#                 p3 += (w_k + 1) ** 2
 
-        return p1 + p2 + p3
+#         return p1 + p2 + p3
 
 
 class InverseHilbert(CustomProblem):
@@ -197,58 +197,58 @@ class InverseHilbert(CustomProblem):
         return np.sum(np.abs(W))
 
 
-class LennardJones(CustomProblem):
-    """
-    Lennard-Jones Minimum Energy Cluster Problem (Function 3)
-    Note: Only defined for D = 3n where n is the number of atoms
-    """
+# class LennardJones(CustomProblem):
+#     """
+#     Lennard-Jones Minimum Energy Cluster Problem (Function 3)
+#     Note: Only defined for D = 3n where n is the number of atoms
+#     """
 
-    def __init__(
-        self,
-        lb: float = -4,
-        ub: float = 4,
-        dimensions: int = 18,
-        save_population=True,
-        **kwargs,
-    ):
-        # Check if dimensions are valid (D should be divisible by 3)
-        if dimensions % 3 != 0:
-            raise ValueError(
-                f"LennardJones function requires D to be divisible by 3. Got D={dimensions}"
-            )
+#     def __init__(
+#         self,
+#         lb: float = -4,
+#         ub: float = 4,
+#         dimensions: int = 18,
+#         save_population=True,
+#         **kwargs,
+#     ):
+#         # Check if dimensions are valid (D should be divisible by 3)
+#         if dimensions % 3 != 0:
+#             raise ValueError(
+#                 f"LennardJones function requires D to be divisible by 3. Got D={dimensions}"
+#             )
 
-        super().__init__(
-            ub=ub,
-            lb=lb,
-            dimensions=dimensions,
-            save_population=save_population,
-            **kwargs,
-        )
-        self.name = kwargs.get("name", f"LennardJones_{dimensions}d")
+#         super().__init__(
+#             ub=ub,
+#             lb=lb,
+#             dimensions=dimensions,
+#             save_population=save_population,
+#             **kwargs,
+#         )
+#         self.name = kwargs.get("name", f"LennardJones_{dimensions}d")
 
-    def obj_func(self, x):
-        D = len(x)
-        n = D // 3  # Number of atoms
+#     def obj_func(self, x):
+#         D = len(x)
+#         n = D // 3  # Number of atoms
 
-        # Add the constant 12.7120622568 as per the document
-        energy = 12.7120622568
+#         # Add the constant 12.7120622568 as per the document
+#         energy = 12.7120622568
 
-        # Calculate pairwise distances and energies
-        for i in range(n - 1):
-            for j in range(i + 1, n):
-                # Calculate squared distance between atoms i and j
-                d_squared = 0
-                for k in range(3):
-                    d_squared += (x[3 * i + k] - x[3 * j + k]) ** 2
+#         # Calculate pairwise distances and energies
+#         for i in range(n - 1):
+#             for j in range(i + 1, n):
+#                 # Calculate squared distance between atoms i and j
+#                 d_squared = 0
+#                 for k in range(3):
+#                     d_squared += (x[3 * i + k] - x[3 * j + k]) ** 2
 
-                # Calculate distance to the power of 6 (d^6)
-                d6 = d_squared**3
+#                 # Calculate distance to the power of 6 (d^6)
+#                 d6 = d_squared**3
 
-                # Add potential energy term
-                if d6 > 0:  # Prevent division by zero
-                    energy += 1 / d6 - 2 / np.sqrt(d6)
+#                 # Add potential energy term
+#                 if d6 > 0:  # Prevent division by zero
+#                     energy += 1 / d6 - 2 / np.sqrt(d6)
 
-        return energy
+#         return energy
 
 
 class Rastrigin(CustomProblem):
@@ -509,18 +509,14 @@ class Ackley(CustomProblem):
         return term1 + term2 + 20 + np.e
 
 
-class Rosenbrock(Problem):
+class Rosenbrock(CustomProblem):
     """
-    Rosenbrock Function
-
-    This is the more involved variant of the multidimensional Rosenbrock function:
+    Rosenbrock Function (Banana Function)
+    
+    This is the multidimensional Rosenbrock function:
     f(x) = sum_{i=1}^{N-1} [100 * (x_{i+1} - x_i^2)^2 + (1 - x_i)^2]
-
+    
     Global minimum at (1,1,...,1) with a value of 0
-
-    * For N=3: One minimum at (1,1,1)
-    * For 4 ≤ N ≤ 7: Two minima - global at (1,1,...,1) and local near (-1,1,...,1)
-    * For larger N: Multiple local minima
     """
 
     def __init__(
@@ -531,68 +527,29 @@ class Rosenbrock(Problem):
         save_population=True,
         **kwargs,
     ):
-        bounds = FloatVar(ub=(ub,) * dimensions, lb=(lb,) * dimensions, name="bounds")
-        super().__init__(bounds, "min", save_population=save_population, **kwargs)
+        super().__init__(
+            ub=ub,
+            lb=lb,
+            dimensions=dimensions,
+            save_population=save_population,
+            **kwargs,
+        )
         self.name = kwargs.get("name", f"Rosenbrock_{dimensions}d")
 
     def obj_func(self, x):
-        # The standard multidimensional Rosenbrock function
-        # f(x) = sum_{i=1}^{N-1} [100*(x_{i+1} - x_i^2)^2 + (1-x_i)^2]
         n = len(x)
         result = 0
-
+        
         for i in range(n - 1):
             result += 100 * (x[i + 1] - x[i] ** 2) ** 2 + (1 - x[i]) ** 2
-
-        return result
-
-
-class RosenbrockVariant1(Problem):
-    """
-    First Variant of Rosenbrock Function (Uncoupled 2D problems)
-
-    This variant is the sum of N/2 uncoupled 2D Rosenbrock problems:
-    f(x) = sum_{i=1}^{N/2} [100 * (x_{2i-1}^2 - x_{2i})^2 + (x_{2i-1} - 1)^2]
-
-    Only defined for even N.
-    """
-
-    def __init__(
-        self,
-        lb: float = -5,
-        ub: float = 10,
-        dimensions: int = 10,
-        save_population=True,
-        **kwargs,
-    ):
-        # Check if dimensions are even
-        if dimensions % 2 != 0:
-            raise ValueError(
-                f"This Rosenbrock variant requires even dimensions. Got D={dimensions}"
-            )
-
-        bounds = FloatVar(ub=(ub,) * dimensions, lb=(lb,) * dimensions, name="bounds")
-        super().__init__(bounds, "min", save_population=save_population, **kwargs)
-        self.name = kwargs.get("name", f"RosenbrockVariant1_{dimensions}d")
-
-    def obj_func(self, x):
-        # The first variant of multidimensional Rosenbrock for even N
-        # f(x) = sum_{i=1}^{N/2} [100*(x_{2i-1}^2 - x_{2i})^2 + (x_{2i-1} - 1)^2]
-        n = len(x)
-        result = 0
-
-        for i in range(n // 2):
-            idx_odd = 2 * i  # This is equivalent to 2i-1 in 0-indexed arrays
-            idx_even = 2 * i + 1  # This is equivalent to 2i in 0-indexed arrays
-            result += 100 * (x[idx_odd] ** 2 - x[idx_even]) ** 2 + (x[idx_odd] - 1) ** 2
-
+            
         return result
 
 
 if __name__ == "__main__":
     problem = Rastrigin(-10, 10, 10)
-    model = GWO.OriginalGWO(epoch=9999, pop_size=100)
-    g_best = model.solve(problem)
+    model = GWO.OriginalGWO(epoch=100, pop_size=100)
+    g_best = model.solve(problem, seed=10)
 
     if not model.problem or not model.history:
         raise ValueError("Problem or history not set in the model.")
@@ -604,11 +561,13 @@ if __name__ == "__main__":
     print("Model parameters:", model.get_parameters())
     print("Model name:", model.get_name())
     print("Global best from attributes:", model.get_attributes()["g_best"])
+    print("Global best from attributes:", model.get_attributes()["g_best"])
     print("Problem name:", model.problem.get_name())
     print("Problem dimensions:", model.problem.n_dims)
     print("Problem bounds:", model.problem.bounds)
     print("Problem lower bounds:", model.problem.lb)
     print("Problem upper bounds:", model.problem.ub)
+    print("model.history.epoch:", model.history.epoch)
 
     os.makedirs("output/test", exist_ok=True)
 

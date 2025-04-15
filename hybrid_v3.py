@@ -20,7 +20,7 @@ class HybridGWOSCSO3(Optimizer):
             a nature-inspired algorithm to solve global optimization problems.
     """
 
-    def __init__(self, epoch=10000, pop_size=100, stagnation_limit=10, initial_scso=0.4, **kwargs):
+    def __init__(self, epoch=10000, pop_size=100, stagnation_limit=10, initial_scso=0.35, **kwargs):
         """
         Args:
             epoch (int): maximum number of iterations, default = 10000

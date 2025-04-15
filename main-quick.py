@@ -4,7 +4,6 @@ from problems import Squared, Rastrigin, StyblinskiTang, Griewank
 from hybrid import HybridGWOSCSO # NORMAL GWO + SCSO
 from hybrid_2 import HybridIGWOSCSO # IMPROVED GWO + SCSO
 from hybrid_v3 import HybridGWOSCSO3 # HYBRID GWO - SCSO With SCSO starting phase
-from hybrid_v3B import HybridGWOSCSO3B # HYBRID GWO - SCSO With SCSO starting phase
 
 EPOCH = 200
 POPULATION = 30
