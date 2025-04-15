@@ -9,8 +9,8 @@ class HybridGWOSCSO3(Optimizer):
     """
     A hybrid optimizer combining Grey Wolf Optimizer (GWO) and Sand Cat Swarm Optimization (SCSO).
     
-    The algorithm starts with GWO to search for good solutions, but switches to SCSO when
-    improvement stagnates to help escape local optima. It dynamically switches between phases
+    The algorithm starts with SCSO to search for good solutions for a set of iteration, then switches to GWO for faster convergence
+    when improvement stagnates it will switch back to SCSO to help escape local optima. It dynamically switches between phases
     based on stagnation detection.
     
     References:
