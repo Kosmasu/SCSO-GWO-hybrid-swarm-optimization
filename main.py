@@ -106,7 +106,7 @@ with open(csv_file, mode="w", newline="") as f:
                             continue
 
                         model_instance = model(epoch=EPOCH, pop_size=pop_size)
-                        g_best = model_instance.solve(problem=problem, seed=i)
+                        g_best = model_instance.solve(problem=problem, seed=i, termination=term_dict)
                         if not model_instance.problem or not model_instance.history:
                             raise ValueError("Problem or history not set in the model.")
 
