@@ -13,6 +13,21 @@ import numpy as np
 from mealpy.utils.space import BaseVar
 
 
+"""
+Yes, all of these benchmark functions are designed for minimization problems where the goal is to find the global minimum.
+In the context of the 100-Digit Challenge and optimization testing in general, these functions serve as difficult test cases because they have challenging characteristics that make finding the global minimum difficult:
+
+Most are multimodal (have multiple local minima)
+Many are non-separable (variables are interdependent)
+Several have numerous local optima that can trap optimization algorithms
+Some have deceptive landscapes where the global minimum is surrounded by areas that might lead algorithms astray
+
+According to the document you shared, all the functions in the 100-Digit Challenge have their global minimum at a function value of 1.000000000 (to 10 digits of accuracy). The challenge is to locate this minimum as precisely as possible.
+For the Rosenbrock function specifically, its standard form has a global minimum of 0 at the point (1,1,...,1), but the version used in the challenge would likely be shifted to have a minimum value of 1.000000000 to match the other functions.
+Different optimization algorithms (like the swarm algorithm you mentioned) can be benchmarked based on how accurately and efficiently they can find these global minima across various challenging landscapes.
+"""
+
+
 class CustomProblem(Problem):
     def __init__(
         self,
