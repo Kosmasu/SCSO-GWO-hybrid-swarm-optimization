@@ -46,11 +46,11 @@ def initialize_problem(
 
 
 MODELS: list[type[Optimizer]] = [
-    PSO.OriginalPSO,
-    GA.BaseGA,
-    DE.OriginalDE,
-    GWO.OriginalGWO,
-    SCSO.OriginalSCSO,
+    # PSO.OriginalPSO,
+    # GA.BaseGA,
+    # DE.OriginalDE,
+    # GWO.OriginalGWO,
+    # SCSO.OriginalSCSO,
     HybridGWOSCSO,
     HybridIGWOSCSO,
     HybridGWOSCSO3,
@@ -77,9 +77,13 @@ term_dict = {
     "epsilon": 1e-10
 }
 
-with open(csv_file, mode="w", newline="") as f:
+# Check if CSV file exists to determine if we need to write the header
+write_header = not os.path.exists(csv_file)
+
+with open(csv_file, mode="a", newline="") as f:
     writer = csv.writer(f)
-    writer.writerow(header)
+    if write_header:
+        writer.writerow(header)
 
     for model in MODELS:
         for problem_class in PROBLEMS:
@@ -111,44 +115,42 @@ with open(csv_file, mode="w", newline="") as f:
                             raise ValueError("Problem or history not set in the model.")
 
                         # Save history to pickle file as checkpoint
-                        with open(checkpoint_file, "wb") as cp_file:
-                            pickle.dump(model_instance.history, cp_file)
+                        # with open(checkpoint_file, "wb") as cp_file:
+                        #     pickle.dump(model_instance.history, cp_file)
 
                         # Prepare output directory for this run (same as checkpoint_dir for clarity)
                         run_dir = checkpoint_dir
                         os.makedirs(run_dir, exist_ok=True)
 
-                        # Visualization
-                        vis_files = []
-                        vis_files.append(model_instance.history.save_global_objectives_chart(filename=os.path.join(run_dir, "goc")))
-                        vis_files.append(model_instance.history.save_local_objectives_chart(filename=os.path.join(run_dir, "loc")))
-                        vis_files.append(model_instance.history.save_global_best_fitness_chart(filename=os.path.join(run_dir, "gbfc")))
-                        vis_files.append(model_instance.history.save_local_best_fitness_chart(filename=os.path.join(run_dir, "lbfc")))
-                        vis_files.append(model_instance.history.save_runtime_chart(filename=os.path.join(run_dir, "rtc")))
-                        vis_files.append(model_instance.history.save_exploration_exploitation_chart(filename=os.path.join(run_dir, "eec")))
-                        vis_files.append(model_instance.history.save_diversity_chart(filename=os.path.join(run_dir, "dc")))
-                        vis_files.append(
-                            model_instance.history.save_trajectory_chart(
-                                list_agent_idx=[3, 5, 6, 7],
-                                selected_dimensions=[3, 4],
-                                filename=os.path.join(run_dir, "tc"),
-                            )
-                        )
+                        # Visualization (commented out)
+                        # vis_files = []
+                        # vis_files.append(model_instance.history.save_global_objectives_chart(filename=os.path.join(run_dir, "goc")))
+                        # vis_files.append(model_instance.history.save_local_objectives_chart(filename=os.path.join(run_dir, "loc")))
+                        # vis_files.append(model_instance.history.save_global_best_fitness_chart(filename=os.path.join(run_dir, "gbfc")))
+                        # vis_files.append(model_instance.history.save_local_best_fitness_chart(filename=os.path.join(run_dir, "lbfc")))
+                        # vis_files.append(model_instance.history.save_runtime_chart(filename=os.path.join(run_dir, "rtc")))
+                        # vis_files.append(model_instance.history.save_exploration_exploitation_chart(filename=os.path.join(run_dir, "eec")))
+                        # vis_files.append(model_instance.history.save_diversity_chart(filename=os.path.join(run_dir, "dc")))
+                        # vis_files.append(
+                        #     model_instance.history.save_trajectory_chart(
+                        #         list_agent_idx=[3, 5, 6, 7],
+                        #         selected_dimensions=[3, 4],
+                        #         filename=os.path.join(run_dir, "tc"),
+                        #     )
+                        # )
 
                         # Calculate difference to ground truth (which is 0)
                         fitness_diff_to_gt = abs(model_instance.g_best.target.fitness - 0)
 
-                        with open(csv_file, mode="a", newline="") as f:
-                            writer = csv.writer(f)
-                            writer.writerow(
-                                [
-                                    problem.name,
-                                    dimension,
-                                    model.__name__,
-                                    i + 1,
-                                    model_instance.g_best.target.fitness,
-                                    sum(model_instance.history.list_epoch_time),
-                                    model_instance.history.epoch,
-                                    fitness_diff_to_gt
-                                ]
-                            )
+                        writer.writerow(
+                            [
+                                problem.name,
+                                dimension,
+                                model.__name__,
+                                i + 1,
+                                model_instance.g_best.target.fitness,
+                                sum(model_instance.history.list_epoch_time),
+                                model_instance.history.epoch,
+                                fitness_diff_to_gt
+                            ]
+                        )
