@@ -17,10 +17,50 @@ from problems import (
     Rastrigin,
     Weierstrass,
 )
-from hybrid import HybridGWOSCSO  # NORMAL GWO + SCSO
+from hybrid_1 import HybridGWOSCSO  # NORMAL GWO + SCSO
 from hybrid_2 import HybridIGWOSCSO  # IMPROVED GWO + SCSO
-from hybrid_v3 import HybridGWOSCSO3  # HYBRID GWO - SCSO With SCSO starting phase
+from hybrid_3 import HybridGWOSCSO3  # HYBRID GWO - SCSO With SCSO starting phase
 
+
+def initialize_problem(
+    problem_class: type[CustomProblem], dimension: int = 10
+) -> CustomProblem:
+    problem = problem_class(dimension=dimension)
+    return problem
+
+
+results_dir = "output/experiment_results"
+os.makedirs(results_dir, exist_ok=True)
+csv_file = os.path.join(results_dir, "experiment_log.csv")
+
+# Define CSV header
+header = [
+    "problem",
+    "dimension",
+    "model",
+    "pop",
+    "run",
+    "best_fitness",
+    "runtime",
+    "epochs",
+    "fitness_diff_to_gt",
+]
+
+
+# Check if CSV file exists to determine if we need to write the header
+write_header = not os.path.exists(csv_file)
+
+# Initialize the parameters
+MODELS: list[type[Optimizer]] = [
+    PSO.OriginalPSO,
+    GA.BaseGA,
+    DE.OriginalDE,
+    GWO.OriginalGWO,
+    SCSO.OriginalSCSO,
+    HybridGWOSCSO,
+    HybridIGWOSCSO,
+    HybridGWOSCSO3,
+]
 EPOCH = 99999
 POPULATION = [20, 50, 70]
 DIMENSION = [2, 5, 10, 20, 30, 50, 100]
@@ -37,59 +77,25 @@ PROBLEMS: list[type[CustomProblem]] = [
     Rosenbrock,
 ]
 
-
-def initialize_problem(
-    problem_class: type[CustomProblem], dimension: int = 10
-) -> CustomProblem:
-    problem = problem_class(dimension=dimension)
-    return problem
-
-
-MODELS: list[type[Optimizer]] = [
-    # PSO.OriginalPSO,
-    # GA.BaseGA,
-    # DE.OriginalDE,
-    # GWO.OriginalGWO,
-    # SCSO.OriginalSCSO,
-    HybridGWOSCSO,
-    HybridIGWOSCSO,
-    HybridGWOSCSO3,
-]
-
-results_dir = "output/experiment_results"
-os.makedirs(results_dir, exist_ok=True)
-csv_file = os.path.join(results_dir, "experiment_log.csv")
-
-# Define CSV header
-header = [
-    "problem",
-    "dimension",
-    "model",
-    "run",
-    "best_fitness",
-    "runtime",
-    "epochs",
-    "fitness_diff_to_gt"
-]
-
-term_dict = {
-    "max_early_stop": 50,
-    "epsilon": 1e-10
+# Termination criteria
+TERMINATION_CRITERIA = {
+    "max_early_stop": 50,  # Stop if the global best solution has not improved for 50 iterations
+    "epsilon": 1e-10,  #  Stop if the global best solution has not improved by 1e-10)
 }
-
-# Check if CSV file exists to determine if we need to write the header
-write_header = not os.path.exists(csv_file)
 
 with open(csv_file, mode="a", newline="") as f:
     writer = csv.writer(f)
     if write_header:
         writer.writerow(header)
 
-    for model in MODELS:
-        for problem_class in PROBLEMS:
-            for dimension in DIMENSION:
-                for pop_size in POPULATION:
-                    for i in range(ITERATIONS):
+    # Iterate through all combinations of models, problems, dimensions, and population sizes
+    for model in (
+        MODELS
+    ):  # PSO, GA, DE, GWO, SCSO, HybridGWOSCSO, HybridIGWOSCSO, HybridGWOSCSO3
+        for problem_class in PROBLEMS:  # Rastrigin, Griewank, Weierstrass, ModifiedSchwefel, ExpandedSchaffer, HappyCat, Ackley, Rosenbrock
+            for dimension in DIMENSION:  # 2, 5, 10, 20, 30, 50, 100
+                for pop_size in POPULATION:  # 20, 50, 70
+                    for i in range(ITERATIONS):  # 30 iterations for each combination
                         problem = initialize_problem(problem_class, dimension)
                         # Nested folder structure: model/problem/dimension/population_size/iteration
                         checkpoint_dir = os.path.join(
@@ -99,21 +105,26 @@ with open(csv_file, mode="a", newline="") as f:
                             problem.name,
                             f"dim{dimension}",
                             f"pop{pop_size}",
-                            f"run_{i+1}"
+                            f"run_{i + 1}",
                         )
                         os.makedirs(checkpoint_dir, exist_ok=True)
                         checkpoint_file = os.path.join(checkpoint_dir, "history.pkl")
 
                         # Skip iteration if checkpoint exists
                         if os.path.exists(checkpoint_file):
-                            print(f"Checkpoint exists for {checkpoint_file}, skipping iteration.")
+                            print(
+                                f"Checkpoint exists for {checkpoint_file}, skipping iteration."
+                            )
                             continue
 
                         model_instance = model(epoch=EPOCH, pop_size=pop_size)
-                        g_best = model_instance.solve(problem=problem, seed=i, termination=term_dict)
+                        g_best = model_instance.solve(
+                            problem=problem, seed=i, termination=TERMINATION_CRITERIA
+                        )
                         if not model_instance.problem or not model_instance.history:
                             raise ValueError("Problem or history not set in the model.")
 
+                        # commented because taking too much disk space
                         # Save history to pickle file as checkpoint
                         # with open(checkpoint_file, "wb") as cp_file:
                         #     pickle.dump(model_instance.history, cp_file)
@@ -122,7 +133,8 @@ with open(csv_file, mode="a", newline="") as f:
                         run_dir = checkpoint_dir
                         os.makedirs(run_dir, exist_ok=True)
 
-                        # Visualization (commented out)
+                        # commented out because taking too much time
+                        # Visualization
                         # vis_files = []
                         # vis_files.append(model_instance.history.save_global_objectives_chart(filename=os.path.join(run_dir, "goc")))
                         # vis_files.append(model_instance.history.save_local_objectives_chart(filename=os.path.join(run_dir, "loc")))
@@ -140,17 +152,20 @@ with open(csv_file, mode="a", newline="") as f:
                         # )
 
                         # Calculate difference to ground truth (which is 0)
-                        fitness_diff_to_gt = abs(model_instance.g_best.target.fitness - 0)
+                        fitness_diff_to_gt = abs(
+                            model_instance.g_best.target.fitness - 0
+                        )
 
                         writer.writerow(
                             [
                                 problem.name,
                                 dimension,
                                 model.__name__,
+                                pop_size,
                                 i + 1,
                                 model_instance.g_best.target.fitness,
                                 sum(model_instance.history.list_epoch_time),
                                 model_instance.history.epoch,
-                                fitness_diff_to_gt
+                                fitness_diff_to_gt,
                             ]
                         )

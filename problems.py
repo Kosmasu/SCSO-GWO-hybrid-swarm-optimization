@@ -4,28 +4,19 @@ Custom benchmark objective functions for optimization algorithms.
 This module contains implementations of various benchmark functions commonly used
 to test optimization algorithms, such as Rastrigin, Styblinski-Tang, and others.
 These functions can be used with the mealpy optimization library.
+
+Most functions are from the CEC 2019 The 100-Digit Challenge
+Price, K. V., Awad, N. H., Ali, M. Z., & Suganthan, P. N. (2018). Problem definitions and evaluation criteria for the 100-digit challenge special session and competition on single objective numerical optimization. In Technical report. Singapore: Nanyang Technological University.
+
+All functions are defined as classes inheriting from the `CustomProblem` class,
+which provides a standard interface for optimization problems.
+
+All functions globally minimize with a value of 0
 """
 
 import os
-from typing import Union
 from mealpy import Problem, FloatVar, GWO
 import numpy as np
-from mealpy.utils.space import BaseVar
-
-
-"""
-Yes, all of these benchmark functions are designed for minimization problems where the goal is to find the global minimum.
-In the context of the 100-Digit Challenge and optimization testing in general, these functions serve as difficult test cases because they have challenging characteristics that make finding the global minimum difficult:
-
-Most are multimodal (have multiple local minima)
-Many are non-separable (variables are interdependent)
-Several have numerous local optima that can trap optimization algorithms
-Some have deceptive landscapes where the global minimum is surrounded by areas that might lead algorithms astray
-
-According to the document you shared, all the functions in the 100-Digit Challenge have their global minimum at a function value of 1.000000000 (to 10 digits of accuracy). The challenge is to locate this minimum as precisely as possible.
-For the Rosenbrock function specifically, its standard form has a global minimum of 0 at the point (1,1,...,1), but the version used in the challenge would likely be shifted to have a minimum value of 1.000000000 to match the other functions.
-Different optimization algorithms (like the swarm algorithm you mentioned) can be benchmarked based on how accurately and efficiently they can find these global minima across various challenging landscapes.
-"""
 
 
 class CustomProblem(Problem):
@@ -36,7 +27,6 @@ class CustomProblem(Problem):
         dimensions: int = 10,
         save_population=True,
         minmax="min",
-        
         **kwargs,
     ):
         bounds = FloatVar(ub=(ub,) * dimensions, lb=(lb,) * dimensions, name="bounds")
@@ -66,82 +56,6 @@ class Squared(CustomProblem):
 
     def obj_func(self, x):
         return np.sum(x**2)
-
-
-# class StyblinskiTang(CustomProblem):
-#     def __init__(
-#         self,
-#         lb: float = -100,
-#         ub: float = 100,
-#         dimensions: int = 10,
-#         save_population=True,
-#         **kwargs,
-#     ):
-#         super().__init__(
-#             ub=ub,
-#             lb=lb,
-#             dimensions=dimensions,
-#             save_population=save_population,
-#             **kwargs,
-#         )
-#         self.name = kwargs.get("name", f"Styblinski_Tang{dimensions}d")
-
-#     def obj_func(self, x):
-#         return 0.5 * np.sum(x**4 - 16 * x**2 + 5 * x)
-
-
-# class StornChebyshev(CustomProblem):
-#     """
-#     Storn's Chebyshev Polynomial Fitting Problem (Function 1)
-#     Note: Only defined for D = 9 and other specific dimensions
-#     """
-
-#     def __init__(
-#         self,
-#         lb: float = -8192,
-#         ub: float = 8192,
-#         dimensions: int = 9,
-#         save_population=True,
-#         **kwargs,
-#     ):
-#         # Check if dimensions are valid (D = 9 for the document)
-#         if dimensions != 9:
-#             raise ValueError(
-#                 "StornChebyshev function is specifically defined for D = 9 in this challenge"
-#             )
-
-#         super().__init__(
-#             ub=ub,
-#             lb=lb,
-#             dimensions=dimensions,
-#             save_population=save_population,
-#             **kwargs,
-#         )
-#         self.name = kwargs.get("name", f"StornChebyshev_{dimensions}d")
-#         self.d = 72.661  # Specific for D = 9
-
-#     def obj_func(self, x):
-#         D = len(x)
-#         m = 32 * D
-
-#         # Calculate p1
-#         u = sum(x[j] * (1.2) ** (D - j - 1) for j in range(D))
-#         p1 = (u - self.d) ** 2 if u < self.d else 0
-
-#         # Calculate p2
-#         v = sum(x[j] * (-1.2) ** (D - j - 1) for j in range(D))
-#         p2 = (v - self.d) ** 2 if v < self.d else 0
-
-#         # Calculate p3
-#         p3 = 0
-#         for k in range(m + 1):
-#             w_k = sum(x[j] * (2 * k / m - 1) ** (D - j - 1) for j in range(D))
-#             if w_k > 1:
-#                 p3 += (w_k - 1) ** 2
-#             elif w_k < -1:
-#                 p3 += (w_k + 1) ** 2
-
-#         return p1 + p2 + p3
 
 
 class InverseHilbert(CustomProblem):
@@ -196,60 +110,6 @@ class InverseHilbert(CustomProblem):
 
         # Calculate sum of absolute values
         return np.sum(np.abs(W))
-
-
-# class LennardJones(CustomProblem):
-#     """
-#     Lennard-Jones Minimum Energy Cluster Problem (Function 3)
-#     Note: Only defined for D = 3n where n is the number of atoms
-#     """
-
-#     def __init__(
-#         self,
-#         lb: float = -4,
-#         ub: float = 4,
-#         dimensions: int = 18,
-#         save_population=True,
-#         **kwargs,
-#     ):
-#         # Check if dimensions are valid (D should be divisible by 3)
-#         if dimensions % 3 != 0:
-#             raise ValueError(
-#                 f"LennardJones function requires D to be divisible by 3. Got D={dimensions}"
-#             )
-
-#         super().__init__(
-#             ub=ub,
-#             lb=lb,
-#             dimensions=dimensions,
-#             save_population=save_population,
-#             **kwargs,
-#         )
-#         self.name = kwargs.get("name", f"LennardJones_{dimensions}d")
-
-#     def obj_func(self, x):
-#         D = len(x)
-#         n = D // 3  # Number of atoms
-
-#         # Add the constant 12.7120622568 as per the document
-#         energy = 12.7120622568
-
-#         # Calculate pairwise distances and energies
-#         for i in range(n - 1):
-#             for j in range(i + 1, n):
-#                 # Calculate squared distance between atoms i and j
-#                 d_squared = 0
-#                 for k in range(3):
-#                     d_squared += (x[3 * i + k] - x[3 * j + k]) ** 2
-
-#                 # Calculate distance to the power of 6 (d^6)
-#                 d6 = d_squared**3
-
-#                 # Add potential energy term
-#                 if d6 > 0:  # Prevent division by zero
-#                     energy += 1 / d6 - 2 / np.sqrt(d6)
-
-#         return energy
 
 
 class Rastrigin(CustomProblem):
@@ -510,10 +370,10 @@ class Ackley(CustomProblem):
 class Rosenbrock(CustomProblem):
     """
     Rosenbrock Function (Banana Function)
-    
+
     This is the multidimensional Rosenbrock function:
     f(x) = sum_{i=1}^{N-1} [100 * (x_{i+1} - x_i^2)^2 + (1 - x_i)^2]
-    
+
     Global minimum at (1,1,...,1) with a value of 0
     """
 
@@ -537,10 +397,10 @@ class Rosenbrock(CustomProblem):
     def obj_func(self, x):
         n = len(x)
         result = 0
-        
+
         for i in range(n - 1):
             result += 100 * (x[i + 1] - x[i] ** 2) ** 2 + (1 - x[i]) ** 2
-            
+
         return result
 
 

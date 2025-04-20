@@ -1,16 +1,14 @@
-from typing import List
-from mealpy.utils.agent import Agent
 import numpy as np
 from mealpy.optimizer import Optimizer
 
 from problems import Rastrigin
 
-class HybridGWOSCSO(Optimizer):
+class HybridGWOSCSO3(Optimizer):
     """
     A hybrid optimizer combining Grey Wolf Optimizer (GWO) and Sand Cat Swarm Optimization (SCSO).
     
-    The algorithm starts with GWO to search for good solutions, but switches to SCSO when
-    improvement stagnates to help escape local optima. It dynamically switches between phases
+    The algorithm starts with SCSO to search for good solutions for a set of iteration, then switches to GWO for faster convergence
+    when improvement stagnates it will switch back to SCSO for another set of iteration to help escape local optima. It dynamically switches between phases
     based on stagnation detection.
     
     References:
@@ -20,7 +18,7 @@ class HybridGWOSCSO(Optimizer):
             a nature-inspired algorithm to solve global optimization problems.
     """
 
-    def __init__(self, epoch=10000, pop_size=100, stagnation_limit=10, **kwargs):
+    def __init__(self, epoch=10000, pop_size=100, stagnation_limit=10, initial_scso=0.35, **kwargs):
         """
         Args:
             epoch (int): maximum number of iterations, default = 10000
@@ -33,6 +31,9 @@ class HybridGWOSCSO(Optimizer):
         self.stagnation_limit = self.validator.check_int("stagnation_limit", stagnation_limit, [1, 100])
         self.set_parameters(["epoch", "pop_size", "stagnation_limit"])
         self.sort_flag = False
+        self.scso_run = epoch*initial_scso # limit the initial SCSO exploration
+        #if epoch*initial_scso > 50: # If you need hard limit use this.
+        #    self.scso_run = 50
     
     def initialize_variables(self):
         """Initialize support variables for the algorithm"""
@@ -45,7 +46,13 @@ class HybridGWOSCSO(Optimizer):
         # Variables for phase tracking
         self.stagnation_count = 0
         self.best_fitness_history = []
-        self.current_phase = "gwo"  # Start with GWO phase
+        self.current_phase = "scso"  # Start with SCSO phase        
+        #self.scso_run = 50 # limit the initial SCSO exploration
+        self.startwithscso = 1
+
+        #Variable to control recovery transition
+        self.recovery_limit = 20 #
+        self.recovery_iter = 0
     
     def get_index_roulette_wheel_selection__(self, p):
         """Helper method for SCSO phase"""
@@ -75,20 +82,30 @@ class HybridGWOSCSO(Optimizer):
                 self.stagnation_count = 0
             else:
                 self.stagnation_count += 1
-
-            # Print when change from scso to gwo
-            if self.current_phase == "scso" and self.stagnation_count < self.stagnation_limit:
-                print(f"Switching from SCSO to GWO at epoch {epoch}")
-                print("Because of improvement in fitness")
-            elif self.current_phase == "gwo" and self.stagnation_count >= self.stagnation_limit:
-                print(f"Stagnation count: {self.stagnation_count}, current phase: {self.current_phase}")
-                print("Because of no improvement in fitness")
-                
-            # Dynamic phase switching based on stagnation
-            if self.stagnation_count >= self.stagnation_limit:
-                self.current_phase = "scso"  # Switch to recovery phase
+            
+            if self.startwithscso == 1:
+                if epoch > self.scso_run:
+                    print(f"Done with initial SCSO run. Switching to GWO at epoch {epoch}")
+                    self.current_phase = "gwo"
+                    self.startwithscso = 0
+                    self.stagnation_count = 0
             else:
-                self.current_phase = "gwo"   # Stay in exploration phase
+                if self.stagnation_count >= self.stagnation_limit:
+                    self.current_phase = "scso"  # Switch to recovery phase
+                    self.recovery_iter = 0
+                    if self.recovery_iter == 0:
+                        print(f"Switching to recovery phase with SCSO at epoch {epoch}")
+
+                if self.current_phase == "scso":
+                    if self.recovery_iter < self.recovery_limit:
+                        self.recovery_iter += 1
+                    else:
+                        if self.stagnation_count >= self.stagnation_limit:
+                            self.recovery_iter = 0
+                            print(f"Still no improvement, restarting recovery run at epoch {epoch}")
+                        else:
+                            self.current_phase = "gwo"
+                            print(f"Switching back from SCSO to GWO at epoch {epoch}")
         
         # Store current best fitness for next iteration comparison
         self.best_fitness_history.append(current_best)
@@ -174,20 +191,20 @@ class HybridGWOSCSO(Optimizer):
 
 # Example usage
 if __name__ == "__main__":
-    epoch = 99999
-    pop_size = 50
+    epoch = 100
+    pop_size = 30
     stagnation_limit = 15  # Switch to SCSO after 15 iterations without improvement
 
     problem = Rastrigin(
         lb=-100,
         ub=100,
-        dimensions=100,
+        dimensions=250,
         minmax="min",
         save_population=True,
-        name="Rastrigin_10d",
+        name="Rastrigin_100d",
     )
     
-    model = HybridGWOSCSO(epoch=epoch, pop_size=pop_size, stagnation_limit=stagnation_limit)
+    model = HybridGWOSCSO3(epoch=epoch, pop_size=pop_size, stagnation_limit=stagnation_limit)
     best_solution = model.solve(problem)
     
     print(f"Solution: {best_solution.solution}")

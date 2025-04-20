@@ -1,5 +1,3 @@
-from typing import List
-from mealpy.utils.agent import Agent
 import numpy as np
 from mealpy.optimizer import Optimizer
 
@@ -8,9 +6,9 @@ from problems import Rastrigin
 
 class HybridIGWOSCSO(Optimizer):
     """
-    A hybrid optimizer combining Improved Grey Wolf Optimizer (GWO) and Sand Cat Swarm Optimization (SCSO).
+    A hybrid optimizer combining Improved Grey Wolf Optimizer (IGWO) and Sand Cat Swarm Optimization (SCSO).
 
-    The algorithm starts with GWO to search for good solutions, but switches to SCSO when
+    The algorithm starts with IGWO to search for good solutions, but switches to SCSO when
     improvement stagnates to help escape local optima. It dynamically switches between phases
     based on stagnation detection.
 
@@ -50,7 +48,7 @@ class HybridIGWOSCSO(Optimizer):
 
     def initialize_variables(self):
         """Initialize support variables for the algorithm"""
-        # GWO doesn't need special initialization
+        # IGWO variables
         self.growth_alpha = 2
         self.growth_delta = 3
 
