@@ -50,20 +50,12 @@ python main.py
 
 Results and checkpoints will be saved in the `output/` directory.
 
-### 3. Jupyter Notebook Demo
-
-Open the notebook for a step-by-step example:
-
-```bash
-jupyter notebook "GWO-SCSO Hybrid.ipynb"
-```
 
 ## Project Structure
 
 - `main.py` — Runs experiments across all models and problems.
 - `hybrid_1.py`, `hybrid_2.py`, `hybrid_3.py` — Hybrid optimizer implementations.
 - `problems.py` — Custom benchmark problem definitions.
-- `GWO-SCSO Hybrid.ipynb` — Notebook demo.
 - `output/` — Results, checkpoints, and visualizations.
 
 ## Customization
