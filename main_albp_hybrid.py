@@ -204,4 +204,4 @@ def plot_workstation_tasks(solution: Individual, problem: MOAssemblyLineBalancin
     plt.show()
 
 for idx, solution in enumerate(pareto, start=1):
-    plot_workstation_tasks(solution, problem, filename=f"albp/workstation_tasks_{idx}.png")
+    plot_workstation_tasks(solution, problem, filename=f"workstation_tasks_{idx}.png")
