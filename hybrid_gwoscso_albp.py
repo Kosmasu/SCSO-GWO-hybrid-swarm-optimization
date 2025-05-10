@@ -1,38 +1,52 @@
 import numpy as np
 import math
+#from mo_albp_platypus import MOAssemblyLineBalancingProblem
 
 # === Pareto Utilities ===
 def dominates(f1, f2):
     return all(x <= y for x, y in zip(f1, f2)) and any(x < y for x, y in zip(f1, f2))
-    #return all(x <= y for x, y in zip(f1, f2)) and any(x < y for x in f1)
 
-def update_archive(pop, archive):
-    for agent in pop:
+def within_eps(f1, f2, epsilons):
+    return all(abs(x - y) <= e for x, y, e in zip(f1, f2, epsilons))
+
+def pareto_filter(candidates):
+    pareto = []
+    for c in candidates:
         dominated = False
-        new_archive = []
-        for arch in archive:
-            if dominates(agent["fitness"], arch["fitness"]):
-                continue
-            elif dominates(arch["fitness"], agent["fitness"]):
+        to_remove = []
+        for i, p in enumerate(pareto):
+            if dominates(p["fitness"], c["fitness"]):
                 dominated = True
                 break
-            else:
-                new_archive.append(arch)
+            elif dominates(c["fitness"], p["fitness"]):
+                to_remove.append(i)
         if not dominated:
-            new_archive.append(agent)
-        archive[:] = new_archive
-    return archive
+            for i in reversed(to_remove):
+                del pareto[i]
+            pareto.append(c)
+    return pareto
 
+def epsilon_filter(pareto, epsilons=(1.0, 5.0)):
+    final = []
+    for c in pareto:
+        if not any(within_eps(c["fitness"], p["fitness"], epsilons) for p in final):
+            final.append(c)
+    return final
+
+def update_archive(pop, archive, epsilons=(1.0, 5.0)):
+    combined = archive + pop
+    pareto = pareto_filter(combined)
+    filtered = epsilon_filter(pareto, epsilons)
+    return filtered
+
+# === GWO Step ===
 def gwo_step(pop, archive, a):
     if len(archive) < 3:
-        # Use best agents from population instead
         sorted_pop = sorted(pop, key=lambda x: x["fitness"])
     else:
         sorted_pop = sorted(archive, key=lambda x: x["fitness"])
-    
-    # Ensure at least 3 agents exist
     if len(sorted_pop) < 3:
-        sorted_pop += [sorted_pop[-1]] * (3 - len(sorted_pop))  # duplicate last if needed
+        sorted_pop += [sorted_pop[-1]] * (3 - len(sorted_pop))
 
     alpha, beta, delta = sorted_pop[:3]
 
@@ -74,34 +88,38 @@ def scso_step(pop, best, epoch, max_epoch):
     return new_pop
 
 # === Hybrid Optimizer ===
-def hybrid_gwo_scso(problem, pop_size=50, max_epoch=200, stagnation_limit=10):
+def hybrid_gwo_scso(problem, pop_size=50, max_epoch=300, stagnation_limit=15, epsilons=(1.0, 1.0)):
     pop = [{"position": np.random.uniform(0, 1, problem.nvars), "fitness": None} for _ in range(pop_size)]
     archive = []
 
+    # Initial fitness eval
     for agent in pop:
-        #solution = type("Sol", (), {"variables": agent["position"]})()
         solution = type("Sol", (), {
             "variables": agent["position"],
             "objectives": [None, None]
         })()
         problem.evaluate(solution)
         agent["fitness"] = solution.objectives
-    archive = update_archive(pop, [])
+
+    archive = update_archive(pop, [], epsilons)
 
     stagnation = 0
     phase = "gwo"
-    best_fitnesses = []
+    best_archive_size = len(archive)
 
     for epoch in range(1, max_epoch + 1):
         if phase == "gwo":
             a = 2 - 2 * (epoch / max_epoch)
             new_pop = gwo_step(pop, archive, a)
         else:
-            best = sorted(archive, key=lambda x: x["fitness"])[0]
+            #best = sorted(archive, key=lambda x: x["fitness"])[0]
+            if archive:
+                best = sorted(archive, key=lambda x: x["fitness"])[0]
+            else:
+                best = min(pop, key=lambda x: x["fitness"])
             new_pop = scso_step(pop, best, epoch, max_epoch)
 
         for agent in new_pop:
-            #solution = type("Sol", (), {"variables": agent["position"]})()
             solution = type("Sol", (), {
                 "variables": agent["position"],
                 "objectives": [None, None]
@@ -109,19 +127,21 @@ def hybrid_gwo_scso(problem, pop_size=50, max_epoch=200, stagnation_limit=10):
             problem.evaluate(solution)
             agent["fitness"] = solution.objectives
 
-        archive = update_archive(new_pop, archive)
+        archive = update_archive(new_pop, archive, epsilons)
         pop = new_pop
 
-        if len(best_fitnesses) > 0 and all(agent["fitness"] == best_fitnesses[-1] for agent in archive):
+        # Stagnation logic based on archive size change
+        if len(archive) == best_archive_size:
             stagnation += 1
         else:
             stagnation = 0
-
-        best_fitnesses.append([agent["fitness"] for agent in archive])
+            best_archive_size = len(archive)
 
         if stagnation >= stagnation_limit:
             phase = "scso"
         else:
             phase = "gwo"
+
+        print(f"Epoch {epoch}: Archive size = {len(archive)} | Phase: {phase}")
 
     return archive

@@ -19,13 +19,13 @@ precedence = {
     28: [27], 29: [28]
 }
 
-problem = MOAssemblyLineBalancingProblem(task_times, precedence, cycle_time_upper_bound=160)
-
-pareto = hybrid_gwo_scso(problem, pop_size=40, max_epoch=300)
+problem = MOAssemblyLineBalancingProblem(task_times, precedence, cycle_time_upper_bound=140)
+#pareto = hybrid_gwo_scso(problem, pop_size=40, max_epoch=300)
+pareto = hybrid_gwo_scso(problem, pop_size=40, max_epoch=300, stagnation_limit=10, epsilons=(1.0, 1.0))
 
 for i, sol in enumerate(pareto):
     obj = sol["fitness"]
-    print(f"\n🔹 Solution {i+1}: {int(obj[0])} Workstations, Bottleneck = {obj[1]:.2f}s")
+    print(f"\n🔹 Solution {i+1}: {int(obj[0])} Workstations, Cycle Time = {obj[1]:.2f}s")
     decoded = problem.decode(sol["position"])
     workstations = problem.assign_tasks(decoded)
     for idx, ws in enumerate(workstations):
