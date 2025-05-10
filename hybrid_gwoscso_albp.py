@@ -1,15 +1,22 @@
+from typing import List, Dict, Tuple, Any, Union, Optional, TypeVar
 import numpy as np
 import math
-#from mo_albp_platypus import MOAssemblyLineBalancingProblem
+
+# Type definitions
+Fitness = List[float]
+Position = np.ndarray
+Individual = Dict[str, Union[Position, Fitness]]
+Archive = List[Individual]
+Problem = Any  # This should be replaced with actual problem type if available
 
 # === Pareto Utilities ===
-def dominates(f1, f2):
+def dominates(f1: Fitness, f2: Fitness) -> bool:
     return all(x <= y for x, y in zip(f1, f2)) and any(x < y for x, y in zip(f1, f2))
 
-def within_eps(f1, f2, epsilons):
+def within_eps(f1: Fitness, f2: Fitness, epsilons: Tuple[float, ...]) -> bool:
     return all(abs(x - y) <= e for x, y, e in zip(f1, f2, epsilons))
 
-def pareto_filter(candidates):
+def pareto_filter(candidates: Archive) -> Archive:
     pareto = []
     for c in candidates:
         dominated = False
@@ -26,21 +33,21 @@ def pareto_filter(candidates):
             pareto.append(c)
     return pareto
 
-def epsilon_filter(pareto, epsilons=(1.0, 5.0)):
+def epsilon_filter(pareto: Archive, epsilons: Tuple[float, ...] = (1.0, 5.0)) -> Archive:
     final = []
     for c in pareto:
         if not any(within_eps(c["fitness"], p["fitness"], epsilons) for p in final):
             final.append(c)
     return final
 
-def update_archive(pop, archive, epsilons=(1.0, 5.0)):
+def update_archive(pop: Archive, archive: Archive, epsilons: Tuple[float, ...] = (1.0, 5.0)) -> Archive:
     combined = archive + pop
     pareto = pareto_filter(combined)
     filtered = epsilon_filter(pareto, epsilons)
     return filtered
 
 # === GWO Step ===
-def gwo_step(pop, archive, a):
+def gwo_step(pop: Archive, archive: Archive, a: float) -> Archive:
     if len(archive) < 3:
         sorted_pop = sorted(pop, key=lambda x: x["fitness"])
     else:
@@ -64,7 +71,7 @@ def gwo_step(pop, archive, a):
     return new_pop
 
 # === SCSO Step ===
-def scso_step(pop, best, epoch, max_epoch):
+def scso_step(pop: Archive, best: Individual, epoch: int, max_epoch: int) -> Archive:
     ss = 2
     guides_r = ss - (ss * epoch / max_epoch)
     new_pop = []
@@ -88,9 +95,11 @@ def scso_step(pop, best, epoch, max_epoch):
     return new_pop
 
 # === Hybrid Optimizer ===
-def hybrid_gwo_scso(problem, pop_size=50, max_epoch=300, stagnation_limit=15, epsilons=(1.0, 1.0)):
+def hybrid_gwo_scso(problem: Problem, pop_size: int = 60, max_epoch: int = 500, 
+                    stagnation_limit: int = 15, epsilons: Tuple[float, ...] = (0.5, 0.5)) -> Tuple[Archive, List[Individual]]:
     pop = [{"position": np.random.uniform(0, 1, problem.nvars), "fitness": None} for _ in range(pop_size)]
-    archive = []
+    archive: Archive = []
+    all_solutions: List[Individual] = []  # Store all evaluated solutions
 
     # Initial fitness eval
     for agent in pop:
@@ -100,19 +109,19 @@ def hybrid_gwo_scso(problem, pop_size=50, max_epoch=300, stagnation_limit=15, ep
         })()
         problem.evaluate(solution)
         agent["fitness"] = solution.objectives
+        all_solutions.append(agent.copy())  # Store a copy of the evaluated solution
 
     archive = update_archive(pop, [], epsilons)
 
-    stagnation = 0
-    phase = "gwo"
-    best_archive_size = len(archive)
+    stagnation: int = 0
+    phase: str = "gwo"
+    best_archive_size: int = len(archive)
 
     for epoch in range(1, max_epoch + 1):
         if phase == "gwo":
-            a = 2 - 2 * (epoch / max_epoch)
+            a: float = 2 - 2 * (epoch / max_epoch)
             new_pop = gwo_step(pop, archive, a)
         else:
-            #best = sorted(archive, key=lambda x: x["fitness"])[0]
             if archive:
                 best = sorted(archive, key=lambda x: x["fitness"])[0]
             else:
@@ -126,6 +135,7 @@ def hybrid_gwo_scso(problem, pop_size=50, max_epoch=300, stagnation_limit=15, ep
             })()
             problem.evaluate(solution)
             agent["fitness"] = solution.objectives
+            all_solutions.append(agent.copy())  # Store a copy of the evaluated solution
 
         archive = update_archive(new_pop, archive, epsilons)
         pop = new_pop
@@ -144,4 +154,4 @@ def hybrid_gwo_scso(problem, pop_size=50, max_epoch=300, stagnation_limit=15, ep
 
         print(f"Epoch {epoch}: Archive size = {len(archive)} | Phase: {phase}")
 
-    return archive
+    return archive, all_solutions
