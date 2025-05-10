@@ -200,7 +200,7 @@ def plot_workstation_tasks(solution: Individual, problem: MOAssemblyLineBalancin
     ax.grid(axis='x', linestyle='--', alpha=0.7)
     
     plt.tight_layout()
-    plt.savefig(f"output/{filename}", dpi=300)
+    plt.savefig(f"output/albp/{filename}", dpi=300)
     plt.show()
 
 for idx, solution in enumerate(pareto, start=1):
