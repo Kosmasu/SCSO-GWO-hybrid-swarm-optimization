@@ -1,5 +1,8 @@
 from problem_mo_albp import MOAssemblyLineBalancingProblem
 from platypus import NSGAII, EpsNSGAII, nondominated
+#DON"T USE THIS ONE#DON"T USE THIS ONE#DON"T USE THIS ONE#DON"T USE THIS ONE
+#DON"T USE THIS ONE#DON"T USE THIS ONE#DON"T USE THIS ONE#DON"T USE THIS ONE
+#DON"T USE THIS ONE#DON"T USE THIS ONE#DON"T USE THIS ONE#DON"T USE THIS ONE
 
 # Task data
 task_times = {
@@ -20,13 +23,15 @@ precedence = {
 }
 
 # Cycle Time has to be determined, cannot be infinity or too large, otherwise there's no point of opening new workstations, So the solutions ended up with very large cycle time and minimum workstations.
-cycle_time_limit = 150 
+cycle_time_limit = 120 
 
 problem = MOAssemblyLineBalancingProblem(task_times, precedence, cycle_time_limit)
 
-#algorithm = NSGAII(problem) #Without epsilon = many similar results = overcrowded pareto front
-algorithm = EpsNSGAII(problem, epsilons=[1.0, 10.0])  # Tune as needed, the first number is for workstations, the 2nd is for Bottleneck Time
-algorithm.run(5000)  # Number of evaluations
+#DON"T USE THIS ONE #DON"T USE THIS ONE
+
+#algorithm = NSGAII(problem, population_size=100) #Without epsilon = many similar results = overcrowded pareto front
+#algorithm = EpsNSGAII(problem, epsilons=[1.0, 10.0])  # Tune as needed, the first number is for workstations, the 2nd is for Bottleneck Time
+#algorithm.run(9999)  # Number of evaluations
 
 # Show Pareto front
 pareto = nondominated(algorithm.result)
