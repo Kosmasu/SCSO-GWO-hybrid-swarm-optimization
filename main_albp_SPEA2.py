@@ -19,8 +19,13 @@ precedence = {
 
 problem = MOAssemblyLineBalancingProblem(task_times, precedence, cycle_time_upper_bound=120)
 
-algorithm = SPEA2(problem, population_size=100)
-algorithm.run(9999)  # or adjust iteration count
+# TO RUN FAIR BENCHMARKING. BECAUSE ALGORITHM.RUN(N). N IS NOT THE SAME WITH MAX EPOCH.
+max_epoch = 300
+population_size = 100
+total_evals = max_epoch * population_size
+
+algorithm = SPEA2(problem, population_size)
+algorithm.run(total_evals)  # or adjust iteration count
 
 filtered = filter_results(algorithm.result, epsilons=(0.0, 0.0))
 

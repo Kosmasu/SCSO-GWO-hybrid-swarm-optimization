@@ -37,7 +37,7 @@ precedence = {
 }
 
 problem = MOAssemblyLineBalancingProblem(task_times, precedence, cycle_time_upper_bound=120)
-pareto, all_solutions = hybrid_gwo_scso(problem, pop_size=100, max_epoch=9999, stagnation_limit=15, epsilons=(0, 0))
+pareto, all_solutions = hybrid_gwo_scso(problem, pop_size=100, max_epoch=300, stagnation_limit=15, epsilons=(0, 0))
 
 for i, sol in enumerate(pareto):
     obj = sol["fitness"]

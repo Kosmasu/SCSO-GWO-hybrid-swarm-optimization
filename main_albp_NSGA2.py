@@ -25,8 +25,13 @@ cycle_time_limit = 120
 
 problem = MOAssemblyLineBalancingProblem(task_times, precedence, cycle_time_limit)
 
-algorithm = NSGAII(problem, population_size=100)
-algorithm.run(9999)  # Number of evaluations
+# TO RUN FAIR BENCHMARKING. BECAUSE ALGORITHM.RUN(N). N IS NOT THE SAME WITH MAX EPOCH.
+max_epoch = 300
+population_size = 100
+total_evals = max_epoch * population_size
+
+algorithm = NSGAII(problem, population_size)
+algorithm.run(total_evals)  # Number of evaluations
 
 # Show Pareto front
 filtered = filter_results(algorithm.result, epsilons=(0, 0)) #SAME PARAMETER AS THE ONE IN HYBRID. NO EPSILON FILTERING

@@ -19,8 +19,13 @@ precedence = {
 
 problem = MOAssemblyLineBalancingProblem(task_times, precedence, cycle_time_upper_bound=120)
 
-algorithm = IBEA(problem, population_size=100)
-algorithm.run(9999)
+# TO RUN FAIR BENCHMARKING. BECAUSE ALGORITHM.RUN(N). N IS NOT THE SAME WITH MAX EPOCH.
+max_epoch = 300
+population_size = 100
+total_evals = max_epoch * population_size
+
+algorithm = IBEA(problem, population_size)
+algorithm.run(total_evals)
 
 filtered = filter_results(algorithm.result, epsilons=(0.0, 0.0))
 
