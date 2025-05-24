@@ -1,4 +1,3 @@
-```markdown
 # SCSO-GWO Hybrid Swarm Optimization (Multi-Objective)
 
 This repository demonstrates multi-objective optimization using a hybrid approach combining Grey Wolf Optimizer (GWO) and Sand Cat Swarm Optimization (SCSO). It leverages the power of [Platypus](https://platypus.readthedocs.io) for Pareto-based evolutionary optimization.
@@ -42,5 +41,3 @@ pip install -r requirements.txt
 
 - Python 3.10+
 - NumPy, Platypus, Matplotlib, and other libraries listed in `requirements.txt`.
-
-```
