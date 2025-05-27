@@ -266,9 +266,10 @@ def run_simulation(genome, config, visualizer=None):
         asteroids.append(asteroid)
 
     alive_frame_counter = 0
-    previous_mineral_distance = float("inf")
-    movement_towards_minerals = 0
     dx, dy = 0, 0
+
+    if visualizer:
+        visualizer.start_time = time.time()
 
     while True:
         alive_frame_counter += 1
