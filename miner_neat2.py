@@ -348,13 +348,16 @@ def run_simulation(genome, config, visualizer=None):
         )
         out_of_fuel = ship.fuel <= 0
 
-        base_timeout_frame = 10_000
-        performance_bonus = min(
-            10_000, ship.minerals * 500
-        )  # Extra time for successful miners
-        max_timeout_frame = (
-            base_timeout_frame + performance_bonus
-        )  # Ensure at least 20 thousand frames
+        # Adaptive timeout based on performance and generation
+        generation_bonus = min(20_000, config.visualizer.generation * 50)  # More time for later generations
+        base_timeout_frame = 12_000 + generation_bonus
+        
+        # Mineral-based bonus (encourages mineral collection)
+        mineral_bonus = min(18_000, ship.minerals * 1000)
+            
+        max_timeout_frame = base_timeout_frame + mineral_bonus
+        # Cap at reasonable maximum
+        max_timeout_frame = min(max_timeout_frame, 40_000)
 
         if asteroid_collision or out_of_fuel or alive_frame_counter >= max_timeout_frame:
             # Penalty for collision or running out of fuel
@@ -364,6 +367,8 @@ def run_simulation(genome, config, visualizer=None):
                 genome.fitness -= 1000
             elif out_of_fuel:
                 genome.fitness -= 250
+            else:
+                genome.fitness += ship.minerals * 100  # Bonus for collected minerals
             break
 
         if alive_frame_counter > 1_000 and ship.minerals == 0 and movement_towards_minerals < 10:
