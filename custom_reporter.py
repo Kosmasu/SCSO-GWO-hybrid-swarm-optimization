@@ -201,7 +201,6 @@ class DataReporter(BaseReporter):
                 info_log = json.load(f)
         else:
             info_log = []
-        
         info_log.append(info_data)
         
         with open(info_filepath, 'w') as f:
