@@ -310,8 +310,8 @@ def run_simulation(genome, config, visualizer=None):
         # 1. Primary reward: Successfully mining minerals
         mineral_bonus = ship.minerals * 150
 
-        # 2. Survival time with exponential growth
-        survival_bonus = math.pow(alive_frame_counter / 1_000, 1.2) * 50  # Exponential growth
+        # 2. Survival time with linear growth
+        survival_bonus = alive_frame_counter * 0.1  # Linear growth
 
         # 3. Fuel efficiency: Don't waste fuel
         fuel_efficiency = (ship.fuel / 100.0) * 25
@@ -367,12 +367,6 @@ def run_simulation(genome, config, visualizer=None):
                 genome.fitness -= 1000
             elif out_of_fuel:
                 genome.fitness -= 250
-            else:
-                genome.fitness += ship.minerals * 100  # Bonus for collected minerals
-            break
-
-        if alive_frame_counter > 1_000 and ship.minerals == 0 and movement_towards_minerals < 10:
-            genome.fitness -= 150  # Penalty for aimless wandering
             break
 
 
