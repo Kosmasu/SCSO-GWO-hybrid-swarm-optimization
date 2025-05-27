@@ -217,6 +217,7 @@ def main():
     running = True
     debug_mode = False
     alive_time = 0
+    dx, dy = 0, 0
     while running:
         alive_time += 1
         debug_screen.fill(BLACK)
@@ -232,7 +233,6 @@ def main():
 
         # Player controls
         keys = pygame.key.get_pressed()
-        dx, dy = 0, 0
         if keys[pygame.K_LEFT]:
             ship.angle -= 0.1
             ship.angle = ship.angle % (2 * math.pi)  # Clamp to 0-2π
@@ -242,6 +242,7 @@ def main():
         if keys[pygame.K_UP]:
             dx = ship.speed * math.cos(ship.angle)
             dy = ship.speed * math.sin(ship.angle)
+            ship.move(dx, dy)
         if keys[pygame.K_BACKSPACE]:
             debug_mode = not debug_mode
         if keys[pygame.K_w]:
@@ -268,7 +269,6 @@ def main():
             print(f"Ship angle: {ship.angle}")
             print(f"Ship math.sin(angle): {math.sin(ship.angle)}")
             print(f"Ship math.cos(angle): {math.cos(ship.angle)}")
-        ship.move(dx, dy)
 
         # Mining
         if keys[pygame.K_SPACE]:

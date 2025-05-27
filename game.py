@@ -27,12 +27,21 @@ class Spaceship(BaseModel):
     fuel: float = 100.0
     minerals: int = 0
     radius: int = 15
+    # Add velocity tracking (for AI input only, doesn't affect actual movement)
+    velocity_x: float = 0.0
+    velocity_y: float = 0.0
 
     def move(self, dx: float, dy: float) -> None:
         if self.fuel > 0:
+            # Store the velocity for AI input calculation
+            self.velocity_x = dx
+            self.velocity_y = dy
             self.x = (self.x + dx) % WIDTH
             self.y = (self.y + dy) % HEIGHT
             self.fuel -= 0.1  # fuel is float
+        else:
+            self.velocity_x = 0
+            self.velocity_y = 0
 
     def mine(self, minerals: list["Mineral"]) -> None:
         for mineral_obj in minerals[:]:

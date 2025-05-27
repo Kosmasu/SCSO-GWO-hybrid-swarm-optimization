@@ -200,10 +200,12 @@ def get_neat_inputs(
     )
 
     # Ship State (5 inputs_value)
+    is_moving = 1.0 if (ship.velocity_x != 0 or ship.velocity_y != 0) else 0.0
+
     inputs_value.extend(
         [
             ship.fuel / 100.0,  # Normalize fuel (0 to 1)
-            ship.speed / 10.0,  # Normalize speed (0 to 10)
+            is_moving,  # Binary: is ship currently moving? (0 or 1)
             ship.minerals,  # Total minerals collected
             math.sin(ship.angle),  # Ship heading Y component
             math.cos(ship.angle),  # Ship heading X component
@@ -212,7 +214,7 @@ def get_neat_inputs(
     inputs_explanation.extend(
         [
             "Ship Fuel (normalized)",
-            "Ship Speed (normalized)",
+            "Ship Is Moving (0 or 1)",
             "Ship Minerals Collected",
             "Ship Heading Sin (normalized)",
             "Ship Heading Cos (normalized)",
@@ -266,6 +268,7 @@ def run_simulation(genome, config, visualizer=None):
     alive_time = 0
     previous_mineral_distance = float("inf")
     movement_towards_minerals = 0
+    dx, dy = 0, 0
 
     while True:
         alive_time += 1
@@ -289,7 +292,10 @@ def run_simulation(genome, config, visualizer=None):
         if output[1] > 0.5:  # Thrust (lowered threshold)
             dx = ship.speed * math.cos(ship.angle)
             dy = ship.speed * math.sin(ship.angle)
-        ship.move(dx, dy)
+            ship.move(dx, dy)
+        else:
+            ship.velocity_x = 0
+            ship.velocity_y = 0
 
         if output[2] > 0.5:
             ship.mine(minerals)
