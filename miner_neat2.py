@@ -266,7 +266,6 @@ def run_simulation(genome, config, visualizer=None):
     alive_time = 0
     previous_mineral_distance = float("inf")
     movement_towards_minerals = 0
-    close_calls_avoided = 0
 
     while True:
         alive_time += 1
@@ -297,6 +296,10 @@ def run_simulation(genome, config, visualizer=None):
             if len(minerals) < 3:
                 minerals.extend(Mineral() for _ in range(2))
 
+        # Move asteroids
+        for asteroid in asteroids:
+            asteroid.move()
+
         # Calculate movement towards minerals reward
         if minerals:  # Avoid first frame issues
             # Find closest mineral
@@ -314,14 +317,6 @@ def run_simulation(genome, config, visualizer=None):
                 ) * 0.5
 
             previous_mineral_distance: float = current_mineral_distance
-
-        # Track asteroid avoidance skill
-        for asteroid in asteroids:
-            asteroid.move()
-            distance = math.hypot(ship.x - asteroid.x, ship.y - asteroid.y)
-            # Reward for skillfully avoiding asteroids in danger zone
-            if 25 <= distance <= 60:  # Close but safe
-                close_calls_avoided += 0.1
 
         # Enhanced fitness function
         # 1. Primary reward: Successfully mining minerals
@@ -351,7 +346,6 @@ def run_simulation(genome, config, visualizer=None):
                 mineral.draw(screen)
 
             for asteroid in asteroids:
-                asteroid.move()
                 asteroid.draw(screen)
 
             ship.draw(screen)
@@ -359,10 +353,6 @@ def run_simulation(genome, config, visualizer=None):
             visualizer.draw_stats(screen, genome.fitness, ship.minerals, ship.fuel)
             pygame.display.flip()
             clock.tick(30)
-
-        # Update asteroids
-        for asteroid in asteroids:
-            asteroid.move()
 
         closest_asteroid = min(
             (a for a in asteroids), key=lambda a: math.hypot(ship.x - a.x, ship.y - a.y)
