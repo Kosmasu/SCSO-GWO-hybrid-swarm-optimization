@@ -336,16 +336,12 @@ def run_simulation(genome, config, visualizer=None):
         # 4. Fuel efficiency: Don't waste fuel
         fuel_efficiency = (ship.fuel / 100.0) * 25
 
-        # 5. Asteroid avoidance skill
-        avoidance_skill = close_calls_avoided
-
         # Combine fitness components
         genome.fitness = (
             mineral_bonus  # Main objective
             + movement_reward  # Encourage moving towards minerals
             + survival_bonus  # Basic survival
             + fuel_efficiency  # Don't waste fuel
-            + avoidance_skill  # Skillful flying
         )
 
         # Visualization
