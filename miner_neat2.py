@@ -265,13 +265,13 @@ def run_simulation(genome, config, visualizer=None):
             asteroid = Asteroid()
         asteroids.append(asteroid)
 
-    alive_time = 0
+    alive_frame_counter = 0
     previous_mineral_distance = float("inf")
     movement_towards_minerals = 0
     dx, dy = 0, 0
 
     while True:
-        alive_time += 1
+        alive_frame_counter += 1
 
         # Handle events
         for event in pygame.event.get():
@@ -306,41 +306,19 @@ def run_simulation(genome, config, visualizer=None):
         for asteroid in asteroids:
             asteroid.move()
 
-        # Calculate movement towards minerals reward
-        if minerals:  # Avoid first frame issues
-            # Find closest mineral
-            closest_mineral = min(
-                minerals, key=lambda m: math.hypot(ship.x - m.x, ship.y - m.y)
-            )
-            current_mineral_distance = math.hypot(
-                ship.x - closest_mineral.x, ship.y - closest_mineral.y
-            )
-
-            # Reward for moving closer to minerals
-            if alive_time > 1 and current_mineral_distance < previous_mineral_distance:
-                movement_towards_minerals += (
-                    previous_mineral_distance - current_mineral_distance
-                ) * 0.5
-
-            previous_mineral_distance: float = current_mineral_distance
-
         # Enhanced fitness function
         # 1. Primary reward: Successfully mining minerals
         mineral_bonus = ship.minerals * 150
 
-        # 2. Movement efficiency: Reward moving towards minerals
-        movement_reward = movement_towards_minerals
+        # 2. Survival time with exponential growth
+        survival_bonus = math.pow(alive_frame_counter / 1_000, 1.2) * 50  # Exponential growth
 
-        # 3. Survival time with diminishing returns
-        survival_bonus = math.log(alive_time + 1) * 8
-
-        # 4. Fuel efficiency: Don't waste fuel
+        # 3. Fuel efficiency: Don't waste fuel
         fuel_efficiency = (ship.fuel / 100.0) * 25
 
         # Combine fitness components
         genome.fitness = (
             mineral_bonus  # Main objective
-            + movement_reward  # Encourage moving towards minerals
             + survival_bonus  # Basic survival
             + fuel_efficiency  # Don't waste fuel
         )
@@ -370,15 +348,15 @@ def run_simulation(genome, config, visualizer=None):
         )
         out_of_fuel = ship.fuel <= 0
 
-        base_timeout = 3_000
+        base_timeout_frame = 10_000
         performance_bonus = min(
-            2_000, ship.minerals * 500
+            10_000, ship.minerals * 500
         )  # Extra time for successful miners
-        max_timeout = (
-            base_timeout + performance_bonus
-        )  # Ensure at least 10 thousand frames
+        max_timeout_frame = (
+            base_timeout_frame + performance_bonus
+        )  # Ensure at least 20 thousand frames
 
-        if asteroid_collision or out_of_fuel or alive_time >= max_timeout:
+        if asteroid_collision or out_of_fuel or alive_frame_counter >= max_timeout_frame:
             # Penalty for collision or running out of fuel
             if asteroid_collision:
                 genome.fitness -= 500
@@ -388,7 +366,7 @@ def run_simulation(genome, config, visualizer=None):
                 genome.fitness -= 250
             break
 
-        if alive_time > 1_000 and ship.minerals == 0 and movement_towards_minerals < 10:
+        if alive_frame_counter > 1_000 and ship.minerals == 0 and movement_towards_minerals < 10:
             genome.fitness -= 150  # Penalty for aimless wandering
             break
 
