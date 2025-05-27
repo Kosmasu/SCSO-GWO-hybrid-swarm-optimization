@@ -498,7 +498,7 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
     stats = neat.StatisticsReporter()
     population.add_reporter(stats)
     population.add_reporter(
-        neat.Checkpointer(1, filename_prefix=os.path.join(output_dir, "checkpoints/"))
+        neat.Checkpointer(25, filename_prefix=os.path.join(output_dir, "checkpoints/"))
     )
     population.add_reporter(DataReporter(output_dir=output_dir))
     # Run NEAT
