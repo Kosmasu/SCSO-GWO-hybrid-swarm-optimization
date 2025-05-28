@@ -19,7 +19,6 @@ from game import (
 if not pygame.get_init():
     pygame.init()
 
-
 def get_neat_inputs(
     ship: Spaceship, minerals: list[Mineral], asteroids: list[Asteroid]
 ) -> tuple[list[str], list[float]]:
@@ -38,18 +37,16 @@ def get_neat_inputs(
     inputs_value: list[float] = []
 
     # Proximity Asteroids
-    inputs_explanation.append("Proximity Asteroids - Radius 50")
-    inputs_value.append(
-        len(count_asteroids_in_radius(ship, asteroids, radius=50)) / len(asteroids)
-    )  # Immediate danger
-    inputs_explanation.append("Proximity Asteroids - Radius 100")
-    inputs_value.append(
-        len(count_asteroids_in_radius(ship, asteroids, radius=100)) / len(asteroids)
-    )  # Medium danger
-    inputs_explanation.append("Proximity Asteroids - Radius 150")
-    inputs_value.append(
-        len(count_asteroids_in_radius(ship, asteroids, radius=150)) / len(asteroids)
-    )  # Far danger
+    inputs_value.extend([
+        1.0 if len(count_asteroids_in_radius(ship, asteroids, radius=50)) > 0 else 0.0,    # Any immediate danger
+        1.0 if len(count_asteroids_in_radius(ship, asteroids, radius=50)) > 1 else 0.0,    # Multiple immediate threats
+        1.0 if len(count_asteroids_in_radius(ship, asteroids, radius=100)) > 2 else 0.0,   # Crowded area
+    ])
+    inputs_explanation.extend([
+        "Immediate Danger (0 or 1): Any asteroid within 50 pixels",
+        "Multiple Threats (0 or 1): More than one asteroid within 50 pixels",
+        "Crowded Area (0 or 1): More than two asteroids within 100 pixels",
+    ])
     assert len(inputs_value) == len(inputs_explanation), (
         "Inputs and explanations must match in length - Proximity Asteroids"
     )
@@ -309,19 +306,20 @@ def run_simulation(genome, config, visualizer=None):
 
         # Enhanced fitness function
         # 1. Primary reward: Successfully mining minerals
-        mineral_bonus = ship.minerals * 150
+        mineral_bonus = ship.minerals * 20
 
         # 2. Survival time with linear growth
         survival_bonus = alive_frame_counter * 0.1  # Linear growth
 
-        # 3. Fuel efficiency: Don't waste fuel
-        fuel_efficiency = (ship.fuel / 100.0) * 25
+        # 3. Fuel level (reward for not wasting fuel)
+        # Fuel is capped at 100, so we can use it directly
+        fuel_level = ship.fuel
 
         # Combine fitness components
         genome.fitness = (
-            mineral_bonus  # Main objective
-            + survival_bonus  # Basic survival
-            + fuel_efficiency  # Don't waste fuel
+            survival_bonus  # Main objective
+            + mineral_bonus  # Mining bonus
+            + fuel_level  # Don't waste fuel
         )
 
         # Visualization
@@ -361,13 +359,6 @@ def run_simulation(genome, config, visualizer=None):
         max_timeout_frame = min(max_timeout_frame, 40_000)
 
         if asteroid_collision or out_of_fuel or alive_frame_counter >= max_timeout_frame:
-            # Penalty for collision or running out of fuel
-            if asteroid_collision:
-                genome.fitness -= 500
-            elif out_of_fuel and ship.minerals == 0:
-                genome.fitness -= 1000
-            elif out_of_fuel:
-                genome.fitness -= 250
             break
 
 
@@ -435,9 +426,7 @@ def eval_genomes(genomes, config):
 
 def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool = False):
     # Initialize pygame
-    pygame.init()
-    global screen, clock, WIDTH, HEIGHT
-    WIDTH, HEIGHT = 800, 600
+    global screen, clock
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("NEAT - Space Miner Training")
     clock = pygame.time.Clock()
