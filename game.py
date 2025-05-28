@@ -372,3 +372,69 @@ def count_asteroids_in_radius(
         if distance <= radius + asteroid.radius:
             proximity_asteroids.append(asteroid)
     return proximity_asteroids
+
+class RadarScanResult(BaseModel):
+    distance: float
+    angle: float
+
+def radar_scan(
+    ship: Spaceship,
+    objects: list[Asteroid] | list[Mineral],
+    n_directions: int = 24,
+    max_range: float = 300.0,
+) -> list[RadarScanResult]:
+
+    radar_results: list[RadarScanResult] = []
+
+    # Calculate angle step for each direction
+    angle_step = 2 * math.pi / n_directions
+
+    for i in range(n_directions):
+        # Calculate radar beam angle RELATIVE to ship's facing direction
+        relative_radar_angle = i * angle_step
+        absolute_radar_angle = ship.angle + relative_radar_angle
+
+        # Direction vector for this radar beam (in absolute coordinates)
+        beam_dx = math.cos(absolute_radar_angle)
+        beam_dy = math.sin(absolute_radar_angle)
+
+        closest_distance = max_range
+
+        # Check each asteroid
+        for asteroid in objects:
+            # Get vector from ship to asteroid (considering wrapping)
+            distance, dx, dy = calculate_wrapped_distance(
+                ship.x, ship.y, asteroid.x, asteroid.y
+            )
+
+            # Skip if asteroid is beyond max range
+            if distance > max_range:
+                continue
+
+            # Normalize the direction vector to asteroid
+            if distance > 0:
+                asteroid_dx = dx / distance
+                asteroid_dy = dy / distance
+
+                # Calculate dot product to see if asteroid is in this radar direction
+                dot_product = beam_dx * asteroid_dx + beam_dy * asteroid_dy
+
+                # Calculate the angular tolerance (half the angle between adjacent beams)
+                angular_tolerance = math.cos(angle_step / 2)
+
+                # If asteroid is within the radar beam cone
+                if dot_product >= angular_tolerance:
+                    # Calculate surface-to-surface distance (distance to edge of asteroid)
+                    surface_distance = max(0, distance - ship.radius - asteroid.radius)
+                    
+                    # Keep track of the closest obstacle in this direction
+                    closest_distance = min(closest_distance, surface_distance)
+
+        radar_results.append(
+            RadarScanResult(
+                distance=closest_distance,
+                angle=relative_radar_angle,  # Store relative angle
+            )
+        )
+
+    return radar_results

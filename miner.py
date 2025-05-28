@@ -1,11 +1,13 @@
 import pygame
 import math
 from game import (
+    RadarScanResult,
     Spaceship,
     Mineral,
     Asteroid,
     get_closest_asteroid_info,
     get_closest_mineral_info,
+    radar_scan,
 )
 from data import BLACK, GREEN, RED, WHITE, WIDTH, HEIGHT
 from miner_neat2 import get_neat_inputs
@@ -15,7 +17,7 @@ if not pygame.get_init():
     pygame.init()
 screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 clock: pygame.time.Clock = pygame.time.Clock()
-WINDOW_WIDTH = WIDTH + 420  # Game width + debug panel width
+WINDOW_WIDTH = WIDTH + 620  # Game width + debug panel width
 WINDOW_HEIGHT = HEIGHT
 debug_screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("Space Miner - Debug Mode")
@@ -37,7 +39,7 @@ def draw_debug_panel(
     inputs_explanation, inputs_value = get_neat_inputs(ship, minerals, asteroids)
 
     # Create debug surface (make it larger to accommodate all content)
-    debug_width = 400
+    debug_width = 600
     debug_height = HEIGHT - 20
     max_content_height = 2000  # Large enough for all content
     debug_surface = pygame.Surface((debug_width, max_content_height))
@@ -65,62 +67,14 @@ def draw_debug_panel(
 
     input_idx = 0
 
-    # Proximity Asteroids (3 inputs)
-    draw_text("PROXIMITY ASTEROIDS:", font_medium, (255, 255, 0), True)
-    for i in range(3):
-        explanation = (
-            inputs_explanation[input_idx]
-            if input_idx < len(inputs_explanation)
-            else "Unknown"
-        )
-        value = inputs_value[input_idx] if input_idx < len(inputs_value) else 0.0
-        draw_text(f"  {explanation}: {value:.3f}", font_small)
-        input_idx += 1
-    y_offset += 5
-
-    # Top 5 Asteroids (8 inputs each)
-    draw_text("TOP 5 ASTEROIDS:", font_medium, (255, 100, 100), True)
-    for i in range(5):
-        draw_text(
-            f"  Asteroid {i + 1}:",
-            font_small,
-            (255, 150, 150),
-        )
-        # Display 8 inputs for this asteroid
-        for j in range(8):
-            if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
-                explanation = inputs_explanation[input_idx]
-                value = inputs_value[input_idx]
-                draw_text(f"    {explanation}: {value:.3f}", font_small)
-            input_idx += 1
-
-    y_offset += 5
-
-    # Top 5 Minerals (7 inputs each, but only 3 minerals exist)
-    draw_text("TOP 5 MINERALS:", font_medium, (100, 255, 100), True)
-    for i in range(5):
-        draw_text(
-            f"  Mineral {i + 1}:",
-            font_small,
-            (150, 255, 150),
-        )
-        # Display 7 inputs for existing minerals
-        for j in range(7):
-            if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
-                explanation = inputs_explanation[input_idx]
-                value = inputs_value[input_idx]
-                draw_text(f"    {explanation}: {value:.3f}", font_small)
-            input_idx += 1
-    y_offset += 5
-
-    # Ship State (5 inputs)
+    # Ship State (3 inputs)
     draw_text("SHIP STATE:", font_medium, (100, 100, 255), True)
     draw_text(
         f"  Actual values - Angle: {ship.angle:.2f}",
         font_small,
         (150, 150, 255),
     )
-    for i in range(5):
+    for i in range(3):
         if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
             explanation = inputs_explanation[input_idx]
             value = inputs_value[input_idx]
@@ -128,22 +82,60 @@ def draw_debug_panel(
         input_idx += 1
     y_offset += 5
 
-    # Spatial Awareness (4 inputs)
-    draw_text("SPATIAL AWARENESS:", font_medium, (255, 100, 255), True)
+    # Asteroid Radar Scan (16 inputs)
+    draw_text("ASTEROID RADAR SCAN:", font_medium, (255, 255, 100), True)
     draw_text(
-        f"  Actual position - X: {ship.x:.1f}, Y: {ship.y:.1f}",
+        f"  16 directions, 300px max range",
         font_small,
-        (200, 150, 255),
+        (255, 255, 150),
     )
-    for i in range(4):
+    for i in range(16):
         if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
             explanation = inputs_explanation[input_idx]
             value = inputs_value[input_idx]
-            draw_text(f"  {explanation}: {value:.3f}", font_small)
+            # Color code radar values: red for close obstacles, green for clear
+            color = WHITE
+            if value > 0.8:  # Very close obstacle
+                color = (255, 100, 100)  # Light red
+            elif value > 0.5:  # Medium distance obstacle
+                color = (255, 255, 100)  # Yellow
+            elif value > 0.2:  # Far obstacle
+                color = (100, 255, 100)  # Light green
+            else:  # Clear path
+                color = (100, 255, 100)  # Light green
+
+            draw_text(f"  {explanation}: {value:.3f}", font_small, color)
         input_idx += 1
+    y_offset += 5
+
+    # Mineral Radar Scan (16 inputs)
+    draw_text("MINERAL RADAR SCAN:", font_medium, (255, 255, 100), True)
+    draw_text(
+        f"  16 directions, 300px max range",
+        font_small,
+        (255, 255, 150),
+    )
+    for i in range(16):
+        if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
+            explanation = inputs_explanation[input_idx]
+            value = inputs_value[input_idx]
+            # Color code radar values: red for close obstacles, green for clear
+            color = WHITE
+            if value > 0.8:  # Very close obstacle
+                color = (255, 100, 100)  # Light red
+            elif value > 0.5:  # Medium distance obstacle
+                color = (255, 255, 100)  # Yellow
+            elif value > 0.2:  # Far obstacle
+                color = (100, 255, 100)  # Light green
+            else:  # Clear path
+                color = (100, 255, 100)  # Light green
+
+            draw_text(f"  {explanation}: {value:.3f}", font_small, color)
+        input_idx += 1
+    y_offset += 5
 
     draw_text(
-        f"TOTAL INPUTS: {len(inputs_value)} (Expected: {input_idx})",
+        f"TOTAL INPUTS: {len(inputs_value)} (Expected: 19)",
         font_medium,
         (255, 255, 255),
         True,
@@ -230,6 +222,7 @@ def main():
                 handle_debug_scroll(event)
 
         # Player controls
+        dx, dy = 0, 0
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
             ship.angle -= 0.1
@@ -240,7 +233,6 @@ def main():
         if keys[pygame.K_UP]:
             dx = ship.speed * math.cos(ship.angle)
             dy = ship.speed * math.sin(ship.angle)
-            ship.move(dx, dy)
         if keys[pygame.K_BACKSPACE]:
             debug_mode = not debug_mode
         if keys[pygame.K_w]:
@@ -268,12 +260,15 @@ def main():
             print(f"Ship math.sin(angle): {math.sin(ship.angle)}")
             print(f"Ship math.cos(angle): {math.cos(ship.angle)}")
         if keys[pygame.K_SPACE]:
-            inputs_explanation, inputs_value = get_neat_inputs(ship, minerals, asteroids)
+            inputs_explanation, inputs_value = get_neat_inputs(
+                ship, minerals, asteroids
+            )
             # Print all inputs for debugging
             for i, (explanation, value) in enumerate(
                 zip(inputs_explanation, inputs_value)
             ):
                 print(f"Input {i}: {explanation} = {value:.3f}")
+        ship.move(dx, dy)
 
         # Mining
         if keys[pygame.K_SPACE]:
@@ -300,9 +295,48 @@ def main():
             pygame.draw.circle(debug_screen, WHITE, (int(ship.x), int(ship.y)), 50, 1)
             pygame.draw.circle(debug_screen, WHITE, (int(ship.x), int(ship.y)), 100, 1)
             pygame.draw.circle(debug_screen, WHITE, (int(ship.x), int(ship.y)), 150, 1)
+            pygame.draw.circle(
+                debug_screen, WHITE, (int(ship.x), int(ship.y)), 200, 1
+            )  # Max radar range
 
-            # Draw line from ship using the relative angle to minerals
-            mineral_info = get_closest_mineral_info(ship, minerals, top_n=3)
+            # RADAR SCAN VISUALIZATION            # RADAR SCAN VISUALIZATION
+            N_DIRECTIONS = 16  # Number of radar directions
+            MAX_RANGE = 300.0  # Maximum radar range
+            radar_scan_results: list[RadarScanResult] = radar_scan(
+                ship, asteroids, n_directions=N_DIRECTIONS, max_range=MAX_RANGE
+            )
+
+            for i, result in enumerate(radar_scan_results):
+                # Calculate absolute angle for visualization
+                absolute_angle = ship.angle + result.angle
+                
+                # Calculate end point based on surface distance + ship radius
+                actual_beam_distance = result.distance + ship.radius
+                
+                if result.distance < MAX_RANGE:
+                    # Found an asteroid - draw red line to collision point
+                    end_x = ship.x + actual_beam_distance * math.cos(absolute_angle)
+                    end_y = ship.y + actual_beam_distance * math.sin(absolute_angle)
+                    pygame.draw.line(
+                        debug_screen,
+                        RED,
+                        (int(ship.x), int(ship.y)),
+                        (int(end_x), int(end_y)),
+                        2,
+                    )
+                    # Draw collision point
+                    pygame.draw.circle(debug_screen, (255, 255, 0), (int(end_x), int(end_y)), 3)
+                else:
+                    # No obstacle - draw green line to max range
+                    end_x = ship.x + MAX_RANGE * math.cos(absolute_angle)
+                    end_y = ship.y + MAX_RANGE * math.sin(absolute_angle)
+                    pygame.draw.line(
+                        debug_screen,
+                        GREEN,
+                        (int(ship.x), int(ship.y)),
+                        (int(end_x), int(end_y)),
+                        1,
+                    )
 
             # Draw ship's current facing direction (red line)
             ship_end_x = ship.x + 80 * math.cos(ship.angle)
@@ -315,86 +349,87 @@ def main():
                 3,
             )
 
-            # Draw lines to minerals with relative angles
-            for i, info in enumerate(mineral_info):
-                # Use the actual mineral position for direct line (wrapped if needed)
-                mineral = info.mineral
+            # # Draw lines to minerals with relative angles
+            # mineral_info = get_closest_mineral_info(ship, minerals, top_n=3)
+            # for i, info in enumerate(mineral_info):
+            #     # Use the actual mineral position for direct line (wrapped if needed)
+            #     mineral = info.mineral
 
-                # Calculate wrapped distance for visualization
-                dx = mineral.x - ship.x
-                dy = mineral.y - ship.y
+            #     # Calculate wrapped distance for visualization
+            #     dx = mineral.x - ship.x
+            #     dy = mineral.y - ship.y
 
-                # Handle screen wrapping for visualization
-                if dx > WIDTH / 2:
-                    dx -= WIDTH
-                elif dx < -WIDTH / 2:
-                    dx += WIDTH
+            #     # Handle screen wrapping for visualization
+            #     if dx > WIDTH / 2:
+            #         dx -= WIDTH
+            #     elif dx < -WIDTH / 2:
+            #         dx += WIDTH
 
-                if dy > HEIGHT / 2:
-                    dy -= HEIGHT
-                elif dy < -HEIGHT / 2:
-                    dy += HEIGHT
+            #     if dy > HEIGHT / 2:
+            #         dy -= HEIGHT
+            #     elif dy < -HEIGHT / 2:
+            #         dy += HEIGHT
 
-                # Calculate the wrapped angle for visualization
-                wrapped_angle = math.atan2(dy, dx)
+            #     # Calculate the wrapped angle for visualization
+            #     wrapped_angle = math.atan2(dy, dx)
 
-                # Draw line showing the relative angle (what the AI sees)
-                rel_end_x = ship.x + 80 * math.cos(ship.angle + info.relative_angle)
-                rel_end_y = ship.y + 80 * math.sin(ship.angle + info.relative_angle)
-                pygame.draw.line(
-                    debug_screen,
-                    RED,
-                    (int(ship.x), int(ship.y)),
-                    (int(rel_end_x), int(rel_end_y)),
-                    2,
-                )
+            #     # Draw line showing the relative angle (what the AI sees)
+            #     rel_end_x = ship.x + 80 * math.cos(ship.angle + info.relative_angle)
+            #     rel_end_y = ship.y + 80 * math.sin(ship.angle + info.relative_angle)
+            #     pygame.draw.line(
+            #         debug_screen,
+            #         RED,
+            #         (int(ship.x), int(ship.y)),
+            #         (int(rel_end_x), int(rel_end_y)),
+            #         2,
+            #     )
 
-                # Draw line using wrapped angle (should match the relative angle line)
-                wrapped_end_x = ship.x + 80 * math.cos(wrapped_angle)
-                wrapped_end_y = ship.y + 80 * math.sin(wrapped_angle)
-                pygame.draw.line(
-                    debug_screen,
-                    GREEN,
-                    (int(ship.x), int(ship.y)),
-                    (int(wrapped_end_x), int(wrapped_end_y)),
-                    1,
-                )
+            #     # Draw line using wrapped angle (should match the relative angle line)
+            #     wrapped_end_x = ship.x + 80 * math.cos(wrapped_angle)
+            #     wrapped_end_y = ship.y + 80 * math.sin(wrapped_angle)
+            #     pygame.draw.line(
+            #         debug_screen,
+            #         GREEN,
+            #         (int(ship.x), int(ship.y)),
+            #         (int(wrapped_end_x), int(wrapped_end_y)),
+            #         1,
+            #     )
 
-            # Draw lines to asteroids with relative angles
-            asteroid_info = get_closest_asteroid_info(ship, asteroids, top_n=5)
-            for i, info in enumerate(asteroid_info):
-                # info.angle is already the relative angle from get_closest_asteroid_info
-                # So we need to add it to ship.angle to get the absolute direction
+            # # Draw lines to asteroids with relative angles
+            # asteroid_info = get_closest_asteroid_info(ship, asteroids, top_n=5)
+            # for i, info in enumerate(asteroid_info):
+            #     # info.angle is already the relative angle from get_closest_asteroid_info
+            #     # So we need to add it to ship.angle to get the absolute direction
 
-                # Draw line showing the relative angle (what the AI sees)
-                rel_end_x = ship.x + 80 * math.cos(ship.angle + info.relative_angle)
-                rel_end_y = ship.y + 80 * math.sin(ship.angle + info.relative_angle)
-                pygame.draw.line(
-                    debug_screen,
-                    RED,
-                    (int(ship.x), int(ship.y)),
-                    (int(rel_end_x), int(rel_end_y)),
-                    2,
-                )
+            #     # Draw line showing the relative angle (what the AI sees)
+            #     rel_end_x = ship.x + 80 * math.cos(ship.angle + info.relative_angle)
+            #     rel_end_y = ship.y + 80 * math.sin(ship.angle + info.relative_angle)
+            #     pygame.draw.line(
+            #         debug_screen,
+            #         RED,
+            #         (int(ship.x), int(ship.y)),
+            #         (int(rel_end_x), int(rel_end_y)),
+            #         2,
+            #     )
 
-                # Draw line directly to the asteroid (absolute direction for reference)
-                asteroid = info.asteroid
-                pygame.draw.line(
-                    debug_screen,
-                    WHITE,
-                    (int(ship.x), int(ship.y)),
-                    (int(asteroid.x), int(asteroid.y)),
-                    1,
-                )
+            #     # Draw line directly to the asteroid (absolute direction for reference)
+            #     asteroid = info.asteroid
+            #     pygame.draw.line(
+            #         debug_screen,
+            #         WHITE,
+            #         (int(ship.x), int(ship.y)),
+            #         (int(asteroid.x), int(asteroid.y)),
+            #         1,
+            #     )
 
-                # Add text labels
-                font_small = pygame.font.SysFont(None, 20)
-                rel_text = font_small.render(
-                    f"Rel: {math.degrees(info.relative_angle):.1f}°",
-                    True,
-                    (255, 255, 255),
-                )
-                debug_screen.blit(rel_text, (int(rel_end_x + 5), int(rel_end_y)))
+            #     # Add text labels
+            #     font_small = pygame.font.SysFont(None, 20)
+            #     rel_text = font_small.render(
+            #         f"Rel: {math.degrees(info.relative_angle):.1f}°",
+            #         True,
+            #         (255, 255, 255),
+            #     )
+            #     debug_screen.blit(rel_text, (int(rel_end_x + 5), int(rel_end_y)))
 
             # Draw comprehensive debug panel
             draw_debug_panel(debug_screen, ship, minerals, asteroids)

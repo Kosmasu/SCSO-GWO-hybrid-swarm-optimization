@@ -14,10 +14,12 @@ from game import (
     count_asteroids_in_radius,
     get_closest_asteroid_info,
     get_closest_mineral_info,
+    radar_scan,
 )
 
 if not pygame.get_init():
     pygame.init()
+
 
 def get_neat_inputs(
     ship: Spaceship, minerals: list[Mineral], asteroids: list[Asteroid]
@@ -36,168 +38,10 @@ def get_neat_inputs(
     inputs_explanation: list[str] = []
     inputs_value: list[float] = []
 
-    # Proximity Asteroids
-    inputs_value.extend([
-        1.0 if len(count_asteroids_in_radius(ship, asteroids, radius=50)) > 0 else 0.0,    # Any immediate danger
-        1.0 if len(count_asteroids_in_radius(ship, asteroids, radius=50)) > 1 else 0.0,    # Multiple immediate threats
-        1.0 if len(count_asteroids_in_radius(ship, asteroids, radius=100)) > 2 else 0.0,   # Crowded area
-    ])
-    inputs_explanation.extend([
-        "Immediate Danger (0 or 1): Any asteroid within 50 pixels",
-        "Multiple Threats (0 or 1): More than one asteroid within 50 pixels",
-        "Crowded Area (0 or 1): More than two asteroids within 100 pixels",
-    ])
-    assert len(inputs_value) == len(inputs_explanation), (
-        "Inputs and explanations must match in length - Proximity Asteroids"
-    )
-
-    max_distance = math.sqrt(WIDTH**2 + HEIGHT**2)
-
-    # Top 5 Asteroid Information
-    asteroid_info = get_closest_asteroid_info(ship, asteroids, top_n=5)
-    for i in range(5):
-        if i < len(asteroid_info):
-            info = asteroid_info[i]
-            inputs_value.extend([
-                min(info.distance / max_distance, 1.0),  # Distance (normalized)
-                math.sin(info.relative_angle),  # Relative angle Y (normalized to -1, 1)
-                math.cos(info.relative_angle),  # Relative angle X (normalized to -1, 1)
-            ])
-
-            # Add trend: is asteroid getting closer or farther?
-            if len(info.future_positions) >= 2:
-                trend = (
-                    info.future_positions[-1][0] - info.future_positions[0][0]
-                )  # Last - First distance
-                inputs_value.append(
-                    max(-1.0, min(1.0, trend / max_distance))
-                )  # Normalize trend (-1 = approaching, +1 = moving away)
-            else:
-                inputs_value.append(0.0)  # No trend data
-            inputs_value.append(
-                info.asteroid.radius / ASTEROID_MAX_RADIUS
-            )  # Asteroid size normalized
-
-            # Asteroid speed magnitude (normalized)
-            speed_magnitude = math.sqrt(
-                info.asteroid.speed_x**2 + info.asteroid.speed_y**2
-            )
-            max_speed_magnitude = math.sqrt(2 * (2.0**2))  # sqrt(8) ≈ 2.83
-            inputs_value.append(
-                min(speed_magnitude / max_speed_magnitude, 1.0)
-            )  # Normalize by actual max speed
-
-            # Asteroid speed direction (using sin/cos like angles)
-            if speed_magnitude > 0:
-                speed_angle = math.atan2(info.asteroid.speed_y, info.asteroid.speed_x)
-                inputs_value.extend([
-                    math.sin(speed_angle),  # Speed direction Y component
-                    math.cos(speed_angle),  # Speed direction X component
-                ])
-            else:
-                inputs_value.extend([0.0, 0.0])  # No movement
-        else:
-            # No asteroid data - use -1 to indicate non-existent asteroid
-            inputs_value.extend(
-                [
-                    1.0,  # Distance: maximum distance = very far away
-                    0.0,  # Relative angle sin: neutral direction
-                    0.0,  # Relative angle cos: neutral direction
-                    0.0,  # Trend: no change
-                    0.0,  # Radius: minimum size
-                    0.0,  # Speed magnitude: not moving
-                    0.0,  # Speed direction sin: not moving
-                    0.0,  # Speed direction cos: not moving
-                ]
-            )
-        inputs_explanation.extend(
-            [
-                f"Asteroid {i + 1} Distance (normalized)",
-                f"Asteroid {i + 1} Rel Angle Sin (normalized)",
-                f"Asteroid {i + 1} Rel Angle Cos (normalized)",
-                f"Asteroid {i + 1} Trend (normalized)",
-                f"Asteroid {i + 1} Radius (normalized)",
-                f"Asteroid {i + 1} Speed Mag (normalized)",
-                f"Asteroid {i + 1} Speed Dir Sin (normalized)",
-                f"Asteroid {i + 1} Speed Dir Cos (normalized)",
-            ]
-        )
-    assert len(inputs_value) == len(inputs_explanation), (
-        "Inputs and explanations must match in length - Asteroid Information"
-    )
-
-    # Top 3 Mineral Information
-    mineral_info = get_closest_mineral_info(ship, minerals, top_n=3)
-    for i in range(3):
-        if i < len(mineral_info):
-            info = mineral_info[i]
-
-            inputs_value.append(
-                min(info.distance / max_distance, 1.0)
-            )  # Distance (normalized)
-
-            inputs_value.append(
-                math.sin(info.relative_angle)
-            )  # Relative angle (Y component)
-            inputs_value.append(
-                math.cos(info.relative_angle)
-            )  # Relative angle (X component)
-
-            # Reward factor based on distance to mineral
-            reward_factor = 1.0 - (info.distance / max_distance)
-            inputs_value.append(
-                reward_factor
-            )  # Base reward (inverse distance - closer = better)
-
-            # Asteroid density around mineral (risk factor)
-            inputs_value.append(
-                len(count_asteroids_in_radius(info.mineral, asteroids, radius=50))
-                / len(asteroids)
-            )  # Immediate danger
-            inputs_value.append(
-                len(count_asteroids_in_radius(info.mineral, asteroids, radius=100))
-                / len(asteroids)
-            )  # Medium danger
-            inputs_value.append(
-                len(count_asteroids_in_radius(info.mineral, asteroids, radius=150))
-                / len(asteroids)
-            )  # Far danger
-        else:
-            # No mineral data - fill with safe neutral values
-            inputs_value.extend(
-                [
-                    1.0,  # Distance: maximum distance = very far away
-                    0.0,  # Relative angle sin: neutral direction
-                    0.0,  # Relative angle cos: neutral direction
-                    0.0,  # Reward factor: no reward
-                    0.0,  # Immediate danger: no danger
-                    0.0,  # Medium danger: no danger
-                    0.0,  # Far danger: no danger
-                ]
-            )
-        inputs_explanation.extend(
-            [
-                f"Mineral {i + 1} Distance (normalized)",
-                f"Mineral {i + 1} Rel Angle Sin (normalized)",
-                f"Mineral {i + 1} Rel Angle Cos (normalized)",
-                f"Mineral {i + 1} Reward (normalized)",
-                f"Mineral {i + 1} Immediate Danger (normalized)",
-                f"Mineral {i + 1} Medium Danger (normalized)",
-                f"Mineral {i + 1} Far Danger (normalized)",
-            ]
-        )
-    assert len(inputs_value) == len(inputs_explanation), (
-        "Inputs and explanations must match in length - Mineral Information"
-    )
-
-    # Ship State (5 inputs_value)
-    is_moving = 1.0 if (ship.velocity_x != 0 or ship.velocity_y != 0) else 0.0
-
+    # Ship State (3 inputs_value)
     inputs_value.extend(
         [
             ship.fuel / 100.0,  # Normalize fuel (0 to 1)
-            is_moving,  # Binary: is ship currently moving? (0 or 1)
-            ship.minerals,  # Total minerals collected
             math.sin(ship.angle),  # Ship heading Y component
             math.cos(ship.angle),  # Ship heading X component
         ]
@@ -205,8 +49,6 @@ def get_neat_inputs(
     inputs_explanation.extend(
         [
             "Ship Fuel (normalized)",
-            "Ship Is Moving (0 or 1)",
-            "Ship Minerals Collected",
             "Ship Heading Sin (normalized)",
             "Ship Heading Cos (normalized)",
         ]
@@ -215,27 +57,46 @@ def get_neat_inputs(
         "Inputs and explanations must match in length - Ship State"
     )
 
-    # Spatial Awareness (4 inputs_value)
-    # Distance to edges (for wrapping awareness)
-    inputs_value.extend(
-        [
-            ship.x / WIDTH,  # Distance to left edge (normalized)
-            (WIDTH - ship.x) / WIDTH,  # Distance to right edge (normalized)
-            ship.y / HEIGHT,  # Distance to top edge (normalized)
-            (HEIGHT - ship.y) / HEIGHT,  # Distance to bottom edge (normalized)
-        ]
+    N_RADAR_DIRECTIONS = 16
+    MAX_RADAR_RANGE = 300.0
+    # Radar Scan Asteroids (16 inputs_value)
+    radar_scan_results = radar_scan(
+        ship, asteroids, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
     )
-    inputs_explanation.extend(
-        [
-            "Ship Distance to Left Edge (normalized)",
-            "Ship Distance to Right Edge (normalized)",
-            "Ship Distance to Top Edge (normalized)",
-            "Ship Distance to Bottom Edge (normalized)",
-        ]
-    )
+    
+    # Normalize radar distances (0 = max range/no obstacle, 1 = touching/collision)
+    normalized_radar = [1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results]
+
+    inputs_value.extend(normalized_radar)
+    
+    # Generate explanations for each radar direction (relative to ship heading)
+    for i in range(N_RADAR_DIRECTIONS):
+        angle_deg = i * (360 / N_RADAR_DIRECTIONS)
+        inputs_explanation.append(f"Asteroid Radar {angle_deg:.0f}° relative (normalized inverse distance)")
+    
     assert len(inputs_value) == len(inputs_explanation), (
-        "Inputs and explanations must match in length - Spatial Awareness"
+        "Inputs and explanations must match in length - Radar Scan"
     )
+
+    # Radar Scan Mineral (16 inputs_value)
+    radar_scan_results = radar_scan(
+        ship, minerals, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
+    )
+    
+    # Normalize radar distances (0 = max range/no obstacle, 1 = touching/collision)
+    normalized_radar = [1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results]
+
+    inputs_value.extend(normalized_radar)
+    
+    # Generate explanations for each radar direction (relative to ship heading)
+    for i in range(N_RADAR_DIRECTIONS):
+        angle_deg = i * (360 / N_RADAR_DIRECTIONS)
+        inputs_explanation.append(f"Mineral Radar {angle_deg:.0f}° relative (normalized inverse distance)")
+    
+    assert len(inputs_value) == len(inputs_explanation), (
+        "Inputs and explanations must match in length - Radar Scan"
+    )
+    
     return inputs_explanation, inputs_value
 
 
@@ -335,17 +196,23 @@ def run_simulation(genome, config, visualizer=None):
         out_of_fuel = ship.fuel <= 0
 
         # Adaptive timeout based on performance and generation
-        generation_bonus = min(20_000, config.visualizer.generation * 50)  # More time for later generations
+        generation_bonus = min(
+            20_000, config.visualizer.generation * 50
+        )  # More time for later generations
         base_timeout_frame = 12_000 + generation_bonus
-        
+
         # Mineral-based bonus (encourages mineral collection)
         mineral_bonus = min(18_000, ship.minerals * 1000)
-            
+
         max_timeout_frame = base_timeout_frame + mineral_bonus
         # Cap at reasonable maximum
         max_timeout_frame = min(max_timeout_frame, 40_000)
 
-        if asteroid_collision or out_of_fuel or alive_frame_counter >= max_timeout_frame:
+        if (
+            asteroid_collision
+            or out_of_fuel
+            or alive_frame_counter >= max_timeout_frame
+        ):
             break
 
 
