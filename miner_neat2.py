@@ -58,15 +58,11 @@ def get_neat_inputs(
     for i in range(5):
         if i < len(asteroid_info):
             info = asteroid_info[i]
-            inputs_value.append(
-                min(info.distance / max_distance, 1.0)
-            )  # Current distance (normalized)
-            inputs_value.append(
-                math.sin(info.relative_angle)
-            )  # Relative angle Y (normalized to -1, 1)
-            inputs_value.append(
-                math.cos(info.relative_angle)
-            )  # Relative angle X (normalized to -1, 1)
+            inputs_value.extend([
+                min(info.distance / max_distance, 1.0),  # Distance (normalized)
+                math.sin(info.relative_angle),  # Relative angle Y (normalized to -1, 1)
+                math.cos(info.relative_angle),  # Relative angle X (normalized to -1, 1)
+            ])
 
             # Add trend: is asteroid getting closer or farther?
             if len(info.future_positions) >= 2:
@@ -94,12 +90,10 @@ def get_neat_inputs(
             # Asteroid speed direction (using sin/cos like angles)
             if speed_magnitude > 0:
                 speed_angle = math.atan2(info.asteroid.speed_y, info.asteroid.speed_x)
-                inputs_value.append(
-                    math.sin(speed_angle)
-                )  # Speed direction Y component
-                inputs_value.append(
-                    math.cos(speed_angle)
-                )  # Speed direction X component
+                inputs_value.extend([
+                    math.sin(speed_angle),  # Speed direction Y component
+                    math.cos(speed_angle),  # Speed direction X component
+                ])
             else:
                 inputs_value.extend([0.0, 0.0])  # No movement
         else:
@@ -132,9 +126,9 @@ def get_neat_inputs(
         "Inputs and explanations must match in length - Asteroid Information"
     )
 
-    # Top 5 Mineral Information
-    mineral_info = get_closest_mineral_info(ship, minerals, top_n=5)
-    for i in range(5):
+    # Top 3 Mineral Information
+    mineral_info = get_closest_mineral_info(ship, minerals, top_n=3)
+    for i in range(3):
         if i < len(mineral_info):
             info = mineral_info[i]
 
@@ -290,10 +284,7 @@ def run_simulation(genome, config, visualizer=None):
         if output[1] > 0.5:  # Thrust (lowered threshold)
             dx = ship.speed * math.cos(ship.angle)
             dy = ship.speed * math.sin(ship.angle)
-            ship.move(dx, dy)
-        else:
-            ship.velocity_x = 0
-            ship.velocity_y = 0
+        ship.move(dx, dy)
 
         if output[2] > 0.5:
             ship.mine(minerals)
@@ -305,20 +296,16 @@ def run_simulation(genome, config, visualizer=None):
             asteroid.move()
 
         # Enhanced fitness function
-        # 1. Primary reward: Successfully mining minerals
-        mineral_bonus = ship.minerals * 20
-
-        # 2. Survival time with linear growth
+        # 1. Survival time with linear growth
         survival_bonus = alive_frame_counter * 0.1  # Linear growth
 
-        # 3. Fuel level (reward for not wasting fuel)
+        # 2. Fuel level (reward for not wasting fuel)
         # Fuel is capped at 100, so we can use it directly
         fuel_level = ship.fuel
 
         # Combine fitness components
         genome.fitness = (
             survival_bonus  # Main objective
-            + mineral_bonus  # Mining bonus
             + fuel_level  # Don't waste fuel
         )
 

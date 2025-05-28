@@ -56,10 +56,10 @@ def run_simulation(genome, config, visualizer=None):
         if output[1] > 0.5:  # Thrust (lowered threshold)
             dx = ship.speed * math.cos(ship.angle)
             dy = ship.speed * math.sin(ship.angle)
-            ship.move(dx, dy)
         else:
             ship.velocity_x = 0
             ship.velocity_y = 0
+        ship.move(dx, dy)
 
         if output[2] > 0.5:
             ship.mine(minerals)

@@ -106,9 +106,7 @@ def draw_debug_panel(
         )
         # Display 7 inputs for existing minerals
         for j in range(7):
-            if input_idx < len(inputs_explanation) and input_idx < len(
-                inputs_value
-            ):
+            if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
                 explanation = inputs_explanation[input_idx]
                 value = inputs_value[input_idx]
                 draw_text(f"    {explanation}: {value:.3f}", font_small)
@@ -269,6 +267,13 @@ def main():
             print(f"Ship angle: {ship.angle}")
             print(f"Ship math.sin(angle): {math.sin(ship.angle)}")
             print(f"Ship math.cos(angle): {math.cos(ship.angle)}")
+        if keys[pygame.K_SPACE]:
+            inputs_explanation, inputs_value = get_neat_inputs(ship, minerals, asteroids)
+            # Print all inputs for debugging
+            for i, (explanation, value) in enumerate(
+                zip(inputs_explanation, inputs_value)
+            ):
+                print(f"Input {i}: {explanation} = {value:.3f}")
 
         # Mining
         if keys[pygame.K_SPACE]:
