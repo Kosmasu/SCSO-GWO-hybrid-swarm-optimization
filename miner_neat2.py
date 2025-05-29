@@ -142,11 +142,25 @@ def run_simulation(genome, config, visualizer=None):
         output = net.activate(inputs_value)
 
         # Execute actions with improved mapping
-        ship.angle += (output[0] * 2 - 1) * 0.1  # Turn (-1 to 1)
-        ship.angle = ship.angle % (2 * math.pi)  # Normalize angle
+        turn_output = output[0]
+        if abs(turn_output - 0.5) > 0.05:  # Dead zone for turning
+            turn_rate = (turn_output - 0.5) * 2 * 0.05
+        else:
+            turn_rate = 0
+        ship.angle += turn_rate 
+        ship.angle = ship.angle % (2 * math.pi)
 
         # Bidirectional thrust (-1 = full backward, 0 = no thrust, 1 = full forward)
-        thrust_power = output[1] * 2 - 1  # Convert 0-1 to -1 to 1
+        # Thrust: more nuanced control
+        thrust_output = output[1]
+        
+        # Only apply thrust if output is significantly different from 0.5 (neutral)
+        if abs(thrust_output - 0.5) > 0.1:  # Dead zone for more stable behavior
+            thrust_power = (thrust_output - 0.5) * 2  # Convert to -1 to 1
+            # Scale thrust power more conservatively
+            thrust_power *= 0.7  # Reduce maximum thrust
+        else:
+            thrust_power = 0  # No thrust in dead zone
 
         dx = thrust_power * ship.speed * math.cos(ship.angle)
         dy = thrust_power * ship.speed * math.sin(ship.angle)
@@ -168,16 +182,15 @@ def run_simulation(genome, config, visualizer=None):
 
         # Enhanced fitness function
         # 1. Survival time with linear growth
-        survival_bonus = alive_frame_counter * 0.1  # Linear growth
+        survival_bonus = alive_frame_counter / 4
 
-        # 2. Fuel gained
-        # Fuel is capped at 100, so we can use it directly
-        fuel_gain_bonus = max(0, total_fuel_gain)  # Only count positive fuel gain
+        # 2. Mineral collection bonus
+        mineral_bonus = ship.minerals * 100
 
         # Combine fitness components
         genome.fitness = (
             survival_bonus  # Main objective
-            + fuel_gain_bonus  # Don't waste fuel
+            + mineral_bonus  # Encourage mineral collection
         )
 
         # Visualization
