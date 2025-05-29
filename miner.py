@@ -26,7 +26,6 @@ pygame.display.set_caption("Space Miner - Debug Mode")
 debug_scroll_offset = 0
 debug_content_height = 0
 
-
 def draw_debug_panel(
     screen: pygame.Surface,
     ship: Spaceship,
@@ -108,34 +107,43 @@ def draw_debug_panel(
         input_idx += 1
     y_offset += 5
 
-    # Mineral Radar Scan (16 inputs)
-    draw_text("MINERAL RADAR SCAN:", font_medium, (255, 255, 100), True)
+    # Top 3 Closest Minerals (9 inputs)
+    draw_text("TOP 3 CLOSEST MINERALS:", font_medium, (100, 255, 100), True)
+    closest_minerals = get_closest_mineral_info(ship, minerals, top_n=3)
     draw_text(
-        f"  16 directions, 300px max range",
+        f"  Found {len(closest_minerals)} minerals",
         font_small,
-        (255, 255, 150),
+        (150, 255, 150),
     )
-    for i in range(16):
-        if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
-            explanation = inputs_explanation[input_idx]
-            value = inputs_value[input_idx]
-            # Color code radar values: red for close obstacles, green for clear
-            color = WHITE
-            if value > 0.8:  # Very close obstacle
-                color = (255, 100, 100)  # Light red
-            elif value > 0.5:  # Medium distance obstacle
-                color = (255, 255, 100)  # Yellow
-            elif value > 0.2:  # Far obstacle
-                color = (100, 255, 100)  # Light green
-            else:  # Clear path
-                color = (100, 255, 100)  # Light green
-
-            draw_text(f"  {explanation}: {value:.3f}", font_small, color)
-        input_idx += 1
-    y_offset += 5
+    
+    for mineral_idx in range(3):  # Always show 3 mineral slots
+        draw_text(f"  Mineral {mineral_idx + 1}:", font_small, (150, 255, 150))
+        
+        # Each mineral has 3 inputs: distance, sin(angle), cos(angle)
+        for i in range(3):
+            if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
+                explanation = inputs_explanation[input_idx]
+                value = inputs_value[input_idx]
+                
+                # Color code based on input type and value
+                color = WHITE
+                if "Distance" in explanation:
+                    # Color code distance: green for close, red for far
+                    if value < 0.3:  # Close mineral
+                        color = (100, 255, 100)  # Light green
+                    elif value < 0.6:  # Medium distance
+                        color = (255, 255, 100)  # Yellow
+                    else:  # Far mineral
+                        color = (255, 150, 150)  # Light red
+                else:  # Angle components (sin/cos)
+                    color = (200, 200, 255)  # Light blue for angles
+                
+                draw_text(f"    {explanation}: {value:.3f}", font_small, color)
+            input_idx += 1
+        y_offset += 2  # Small gap between minerals
 
     draw_text(
-        f"TOTAL INPUTS: {len(inputs_value)} (Expected: 19)",
+        f"TOTAL INPUTS: {len(inputs_value)} (Expected: 28)",
         font_medium,
         (255, 255, 255),
         True,
@@ -233,6 +241,10 @@ def main():
         if keys[pygame.K_UP]:
             dx = ship.speed * math.cos(ship.angle)
             dy = ship.speed * math.sin(ship.angle)
+        if keys[pygame.K_DOWN]:
+            # Reverse direction
+            dx = -ship.speed * math.cos(ship.angle)
+            dy = -ship.speed * math.sin(ship.angle)
         if keys[pygame.K_BACKSPACE]:
             debug_mode = not debug_mode
         if keys[pygame.K_w]:

@@ -4,15 +4,14 @@ import math
 import os
 import neat
 import time
+import copy
 
 from custom_reporter import DataReporter
-from data import BLACK, ASTEROID_MAX_RADIUS, WIDTH, HEIGHT, WHITE
+from data import BLACK, WIDTH, HEIGHT, WHITE
 from game import (
     Asteroid,
     Mineral,
     Spaceship,
-    count_asteroids_in_radius,
-    get_closest_asteroid_info,
     get_closest_mineral_info,
     radar_scan,
 )
@@ -63,40 +62,44 @@ def get_neat_inputs(
     radar_scan_results = radar_scan(
         ship, asteroids, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
     )
-    
+
     # Normalize radar distances (0 = max range/no obstacle, 1 = touching/collision)
-    normalized_radar = [1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results]
+    normalized_radar = [
+        1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results
+    ]
 
     inputs_value.extend(normalized_radar)
-    
+
     # Generate explanations for each radar direction (relative to ship heading)
     for i in range(N_RADAR_DIRECTIONS):
         angle_deg = i * (360 / N_RADAR_DIRECTIONS)
-        inputs_explanation.append(f"Asteroid Radar {angle_deg:.0f}° relative (normalized inverse distance)")
-    
+        inputs_explanation.append(
+            f"Asteroid Radar {angle_deg:.0f}° relative (normalized inverse distance)"
+        )
+
     assert len(inputs_value) == len(inputs_explanation), (
-        "Inputs and explanations must match in length - Radar Scan"
+        "Inputs and explanations must match in length - Asteroid Radar Scan"
     )
 
-    # Radar Scan Mineral (16 inputs_value)
-    radar_scan_results = radar_scan(
-        ship, minerals, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
-    )
-    
-    # Normalize radar distances (0 = max range/no obstacle, 1 = touching/collision)
-    normalized_radar = [1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results]
+    # Top 3 Closest Minerals (9 inputs_value)
+    MAX_MINERAL_DISTANCE = math.sqrt(WIDTH**2 + HEIGHT**2)  # Diagonal distance
+    closest_minerals = get_closest_mineral_info(ship, minerals, top_n=3)
+    for mineral in closest_minerals:
+        inputs_value.extend(
+            [
+                mineral.distance / MAX_MINERAL_DISTANCE,  # Normalize distance
+                math.sin(mineral.relative_angle),  # Y component of angle
+                math.cos(mineral.relative_angle),  # X component of angle
+            ]
+        )
+        inputs_explanation.extend(
+            [
+                "Closest Mineral Distance (normalized)",
+                "Closest Mineral Relative Angle Sin (normalized)",
+                "Closest Mineral Relative Angle Cos (normalized)",
+            ]
+        )
 
-    inputs_value.extend(normalized_radar)
-    
-    # Generate explanations for each radar direction (relative to ship heading)
-    for i in range(N_RADAR_DIRECTIONS):
-        angle_deg = i * (360 / N_RADAR_DIRECTIONS)
-        inputs_explanation.append(f"Mineral Radar {angle_deg:.0f}° relative (normalized inverse distance)")
-    
-    assert len(inputs_value) == len(inputs_explanation), (
-        "Inputs and explanations must match in length - Radar Scan"
-    )
-    
     return inputs_explanation, inputs_value
 
 
@@ -119,6 +122,7 @@ def run_simulation(genome, config, visualizer=None):
 
     alive_frame_counter = 0
     dx, dy = 0, 0
+    total_fuel_gain = 0
 
     if visualizer:
         visualizer.start_time = time.time()
@@ -141,16 +145,22 @@ def run_simulation(genome, config, visualizer=None):
         ship.angle += (output[0] * 2 - 1) * 0.1  # Turn (-1 to 1)
         ship.angle = ship.angle % (2 * math.pi)  # Normalize angle
 
-        dx, dy = 0, 0
-        if output[1] > 0.5:  # Thrust (lowered threshold)
-            dx = ship.speed * math.cos(ship.angle)
-            dy = ship.speed * math.sin(ship.angle)
+        # Bidirectional thrust (-1 = full backward, 0 = no thrust, 1 = full forward)
+        thrust_power = output[1] * 2 - 1  # Convert 0-1 to -1 to 1
+
+        dx = thrust_power * ship.speed * math.cos(ship.angle)
+        dy = thrust_power * ship.speed * math.sin(ship.angle)
         ship.move(dx, dy)
 
-        if output[2] > 0.5:
-            ship.mine(minerals)
-            if len(minerals) < 3:
-                minerals.extend(Mineral() for _ in range(2))
+        fuel_before = ship.fuel
+        ship.mine(minerals)
+        if len(minerals) < 3:
+            minerals.extend(Mineral() for _ in range(2))
+        fuel_gain = ship.fuel - fuel_before
+
+        # Accumulate positive fuel gains only
+        if fuel_gain > 0:
+            total_fuel_gain += fuel_gain
 
         # Move asteroids
         for asteroid in asteroids:
@@ -160,14 +170,14 @@ def run_simulation(genome, config, visualizer=None):
         # 1. Survival time with linear growth
         survival_bonus = alive_frame_counter * 0.1  # Linear growth
 
-        # 2. Fuel level (reward for not wasting fuel)
+        # 2. Fuel gained
         # Fuel is capped at 100, so we can use it directly
-        fuel_level = ship.fuel
+        fuel_gain_bonus = max(0, total_fuel_gain)  # Only count positive fuel gain
 
         # Combine fitness components
         genome.fitness = (
             survival_bonus  # Main objective
-            + fuel_level  # Don't waste fuel
+            + fuel_gain_bonus  # Don't waste fuel
         )
 
         # Visualization
@@ -183,7 +193,7 @@ def run_simulation(genome, config, visualizer=None):
 
             visualizer.draw_stats(screen, genome.fitness, ship.minerals, ship.fuel)
             pygame.display.flip()
-            clock.tick(30)
+            clock.tick(60)
 
         closest_asteroid = min(
             (a for a in asteroids), key=lambda a: math.hypot(ship.x - a.x, ship.y - a.y)
@@ -265,6 +275,18 @@ def eval_genomes(genomes, config):
             best_fitness = genome.fitness
             best_in_generation = genome
 
+    # Manual best genome tracking to avoid NEAT bug
+    if not hasattr(config, "manual_best_genome"):
+        config.manual_best_genome = None
+        config.manual_best_fitness = -float("inf")
+
+    if best_fitness > config.manual_best_fitness:
+        config.manual_best_genome = copy.deepcopy(
+            best_in_generation
+        )  # Deep copy to avoid reference issues
+        config.manual_best_fitness = best_fitness
+        print(f"🏆 NEW OVERALL BEST: {best_fitness:.1f}")
+
     # Update visualizer with this generation's results
     visualizer.update_generation(best_in_generation)
 
@@ -276,7 +298,6 @@ def eval_genomes(genomes, config):
         run_simulation(
             best_in_generation, config, visualizer=visualizer
         )  # With visualization
-
 
 def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool = False):
     # Initialize pygame
@@ -293,31 +314,35 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
         neat.DefaultStagnation,
         config_file,
     )
-    config.visualizer = TrainingVisualizer()
 
-    # Create population
+    # Create output directories
+    os.makedirs(output_dir, exist_ok=True)
+    checkpoints_dir = os.path.join(output_dir, "checkpoints")
+    os.makedirs(checkpoints_dir, exist_ok=True)
+
+    # Set up visualizer
+    visualizer = TrainingVisualizer()
+    config.visualizer = visualizer
+
+    # Create or restore population
     if continue_from_checkpoint:
-        print("Restoring from checkpoint...")
-        # open `info_log.json` to get the last generation
-        info_log = os.path.join(output_dir, "info_log.json")
-        if not os.path.exists(info_log):
-            raise FileNotFoundError(
-                f"Checkpoint info log not found: {info_log}. "
-                "Make sure to run the training first."
-            )
-        with open(info_log, "r") as f:
-            import json
-
-            info = json.load(f)
-            last_generation = info[-1]["generation"]
-            print(f"Last generation: {last_generation}")
-        population = neat.Checkpointer.restore_checkpoint(
-            os.path.join(output_dir, "checkpoints", f"{last_generation}")
-        )
-        print(f"Restored population from generation {population.generation}")
-        # Sync visualizer with the restored population
-        config.visualizer.generation = population.generation
+        # Find the latest checkpoint
+        checkpoint_files = [f for f in os.listdir(checkpoints_dir) if f.startswith("neat-checkpoint-")]
+        if checkpoint_files:
+            # Sort by checkpoint number and get the latest
+            checkpoint_files.sort(key=lambda x: int(x.split("-")[-1]))
+            latest_checkpoint = os.path.join(checkpoints_dir, checkpoint_files[-1])
+            print(f"🔄 Restoring from checkpoint: {latest_checkpoint}")
+            population = neat.Checkpointer.restore_checkpoint(latest_checkpoint)
+            
+            # Update config with restored population's generation
+            visualizer.generation = population.generation
+        else:
+            print("⚠️  No checkpoint files found, starting fresh...")
+            population = neat.Population(config)
+            continue_from_checkpoint = False  # No actual checkpoint to continue from
     else:
+        # Create a new population
         population = neat.Population(config)
 
     # Add reporters
@@ -325,12 +350,29 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
     stats = neat.StatisticsReporter()
     population.add_reporter(stats)
     population.add_reporter(
-        neat.Checkpointer(25, filename_prefix=os.path.join(output_dir, "checkpoints/"))
+        neat.Checkpointer(25, filename_prefix=os.path.join(checkpoints_dir, "neat-checkpoint-"))
     )
-    population.add_reporter(DataReporter(output_dir=output_dir))
+    
+    # Add our clean data reporter with checkpoint flag
+    data_reporter = DataReporter(
+        output_dir=output_dir, 
+        config_file_path=config_file, 
+        continue_from_checkpoint=continue_from_checkpoint
+    )
+    population.add_reporter(data_reporter)
+
     # Run NEAT
     try:
-        winner = population.run(eval_genomes, 1000)
+        population.run(eval_genomes, 1000)
+        
+        # Save final summary
+        data_reporter.save_final_summary()
+        
+        # Fix: Use manual tracking or population.best_genome
+        winner = getattr(config, 'manual_best_genome', None) or population.best_genome
+        
+        if not winner:
+            raise ValueError("No winner genome found after training.")
 
         print("\nTraining complete! Final best genome:")
         print(f"Fitness: {winner.fitness:.1f}")
@@ -341,11 +383,11 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
         print("\nTesting winner...")
         run_simulation(winner, config, visualizer=config.visualizer)
 
-        # save the winner
+        # Save the winner
         with open(os.path.join(output_dir, "winner.pkl"), "wb") as f:
             pickle.dump(winner, f)
         print(f"Winner genome saved to {output_dir} as 'winner.pkl'")
-
+ 
     finally:
         pygame.quit()
 
