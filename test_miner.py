@@ -59,16 +59,34 @@ def run_simulation(genome, config, visualizer=None):
         ship.angle = ship.angle % (2 * math.pi)
 
         # Bidirectional thrust (-1 = full backward, 0 = no thrust, 1 = full forward)
-        # Thrust: more nuanced control
+        # thrust_output=-1.0 -> thrust_power=-0.80
+        # thrust_output=-0.9 -> thrust_power=-0.69
+        # thrust_output=-0.8 -> thrust_power=-0.57
+        # thrust_output=-0.7 -> thrust_power=-0.46
+        # thrust_output=-0.6 -> thrust_power=-0.34
+        # thrust_output=-0.5 -> thrust_power=-0.23
+        # thrust_output=-0.4 -> thrust_power=-0.11
+        # thrust_output=-0.3 -> thrust_power=0.00
+        # thrust_output=-0.2 -> thrust_power=0.00
+        # thrust_output=-0.1 -> thrust_power=0.00
+        # thrust_output=0.0 -> thrust_power=0.00
+        # thrust_output=0.1 -> thrust_power=0.00
+        # thrust_output=0.2 -> thrust_power=0.00
+        # thrust_output=0.3 -> thrust_power=0.00
+        # thrust_output=0.4 -> thrust_power=0.14
+        # thrust_output=0.5 -> thrust_power=0.29
+        # thrust_output=0.6 -> thrust_power=0.43
+        # thrust_output=0.7 -> thrust_power=0.57
+        # thrust_output=0.8 -> thrust_power=0.71
+        # thrust_output=0.9 -> thrust_power=0.86
+        # thrust_output=1.0 -> thrust_power=1.00
         thrust_output = output[1]
-
-        # Only apply thrust if output is significantly different from 0.5 (neutral)
-        if abs(thrust_output - 0.5) > 0.1:  # Dead zone for more stable behavior
-            thrust_power = (thrust_output - 0.5) * 2  # Convert to -1 to 1
-            # Scale thrust power more conservatively
-            thrust_power *= 0.7  # Reduce maximum thrust
+        if thrust_output < -0.3:
+            thrust_power = ((thrust_output + 0.3) / 0.7) * 0.8
+        elif thrust_output >= -0.3 and thrust_output <= 0.3:
+            thrust_power = 0
         else:
-            thrust_power = 0  # No thrust in dead zone
+            thrust_power = (thrust_output - 0.3) / 0.7
 
         dx = thrust_power * ship.speed * math.cos(ship.angle)
         dy = thrust_power * ship.speed * math.sin(ship.angle)
@@ -90,15 +108,15 @@ def run_simulation(genome, config, visualizer=None):
 
         # Enhanced fitness function
         # 1. Survival time with linear growth
-        survival_bonus = alive_frame_counter / 4
+        survival_bonus = alive_frame_counter / 10
 
-        # 2. Mineral collection bonus
-        mineral_bonus = ship.minerals * 100
+        # 2. Fuel gain bonus
+        fuel_gain_bonus = total_fuel_gain * 5  # Scale fuel gain to a reasonable range
 
         # Combine fitness components
         genome.fitness = (
             survival_bonus  # Main objective
-            + mineral_bonus  # Encourage mineral collection
+            + fuel_gain_bonus  # Encourage smart fuel collection
         )
 
         # Visualization
@@ -144,6 +162,8 @@ def run_simulation(genome, config, visualizer=None):
             or out_of_fuel
             or alive_frame_counter >= max_timeout_frame
         ):
+            if asteroid_collision:
+                genome.fitness -= 50
             break
 
 
