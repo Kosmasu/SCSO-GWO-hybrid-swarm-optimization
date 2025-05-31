@@ -88,7 +88,9 @@ def get_neat_inputs(
         closest_asteroid = closest_asteroids[0]
         inputs_value.extend(
             [
-                max(0.0, 1.0 - (closest_asteroid.distance / MAX_RADAR_RANGE)),  # Normalize distance
+                max(
+                    0.0, 1.0 - (closest_asteroid.distance / MAX_RADAR_RANGE)
+                ),  # Normalize distance
                 math.sin(closest_asteroid.relative_angle),  # Y component of angle
                 math.cos(closest_asteroid.relative_angle),  # X component of angle
             ]
@@ -104,7 +106,6 @@ def get_neat_inputs(
         ]
     )
 
-
     # Top 3 Closest Minerals (9 inputs_value)
     closest_minerals = get_closest_mineral_info(ship, minerals, top_n=3)
 
@@ -113,7 +114,9 @@ def get_neat_inputs(
             mineral = closest_minerals[i]
             inputs_value.extend(
                 [
-                    max(0.0, 1.0 - (mineral.distance / MAX_RADAR_RANGE)),  # Normalize distance
+                    max(
+                        0.0, 1.0 - (mineral.distance / MAX_RADAR_RANGE)
+                    ),  # Normalize distance
                     math.sin(mineral.relative_angle),  # Y component of angle
                     math.cos(mineral.relative_angle),  # X component of angle
                 ]
@@ -176,37 +179,20 @@ def run_simulation(genome, config, visualizer=None):
         # Get actions from network
         output = net.activate(inputs_value)
 
-        # Execute actions with improved mapping
+        # tanh compatible
+        # Turn rate (-1 = full left, -0.3 - 0.3 = no turn, 1 = full right)
         turn_output = output[0]
-        if abs(turn_output - 0.5) > 0.05:  # Dead zone for turning
-            turn_rate = (turn_output - 0.5) * 2 * 0.05
-        else:
+        if turn_output < -0.3:
+            turn_rate = ((turn_output + 0.3) / 0.7) * 0.05
+        elif turn_output >= -0.3 and turn_output <= 0.3:
             turn_rate = 0
+        else:
+            turn_rate = (turn_output - 0.3) / 0.7 * 0.05
         ship.angle += turn_rate
         ship.angle = ship.angle % (2 * math.pi)
 
-        # Bidirectional thrust (-1 = full backward, 0 = no thrust, 1 = full forward)
-        # thrust_output=-1.0 -> thrust_power=-0.80
-        # thrust_output=-0.9 -> thrust_power=-0.69
-        # thrust_output=-0.8 -> thrust_power=-0.57
-        # thrust_output=-0.7 -> thrust_power=-0.46
-        # thrust_output=-0.6 -> thrust_power=-0.34
-        # thrust_output=-0.5 -> thrust_power=-0.23
-        # thrust_output=-0.4 -> thrust_power=-0.11
-        # thrust_output=-0.3 -> thrust_power=0.00
-        # thrust_output=-0.2 -> thrust_power=0.00
-        # thrust_output=-0.1 -> thrust_power=0.00
-        # thrust_output=0.0 -> thrust_power=0.00
-        # thrust_output=0.1 -> thrust_power=0.00
-        # thrust_output=0.2 -> thrust_power=0.00
-        # thrust_output=0.3 -> thrust_power=0.00
-        # thrust_output=0.4 -> thrust_power=0.14
-        # thrust_output=0.5 -> thrust_power=0.29
-        # thrust_output=0.6 -> thrust_power=0.43
-        # thrust_output=0.7 -> thrust_power=0.57
-        # thrust_output=0.8 -> thrust_power=0.71
-        # thrust_output=0.9 -> thrust_power=0.86
-        # thrust_output=1.0 -> thrust_power=1.00
+        # tanh compatible
+        # Bidirectional thrust (-1 = full backward, -0.3 - 0,3 = no thrust, 1 = full forward)
         thrust_output = output[1]
         if thrust_output < -0.3:
             thrust_power = ((thrust_output + 0.3) / 0.7) * 0.8
