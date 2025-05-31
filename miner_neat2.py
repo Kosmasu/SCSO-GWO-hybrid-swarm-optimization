@@ -12,6 +12,7 @@ from game import (
     Asteroid,
     Mineral,
     Spaceship,
+    get_closest_asteroid_info,
     get_closest_mineral_info,
     radar_scan,
 )
@@ -56,9 +57,9 @@ def get_neat_inputs(
         "Inputs and explanations must match in length - Ship State"
     )
 
-    N_RADAR_DIRECTIONS = 16
-    MAX_RADAR_RANGE = 300.0
-    # Radar Scan Asteroids (16 inputs_value)
+    N_RADAR_DIRECTIONS = 12
+    MAX_RADAR_RANGE = 200.0
+    # Radar Scan Asteroids (12 inputs_value)
     radar_scan_results = radar_scan(
         ship, asteroids, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
     )
@@ -81,24 +82,58 @@ def get_neat_inputs(
         "Inputs and explanations must match in length - Asteroid Radar Scan"
     )
 
-    # Top 3 Closest Minerals (9 inputs_value)
-    MAX_MINERAL_DISTANCE = math.sqrt(WIDTH**2 + HEIGHT**2)  # Diagonal distance
-    closest_minerals = get_closest_mineral_info(ship, minerals, top_n=3)
-    for mineral in closest_minerals:
+    # Top 1 Closest Asteroid (3 inputs_value)
+    closest_asteroids = get_closest_asteroid_info(ship, asteroids, top_n=1)
+    if closest_asteroids:
+        closest_asteroid = closest_asteroids[0]
         inputs_value.extend(
             [
-                mineral.distance / MAX_MINERAL_DISTANCE,  # Normalize distance
-                math.sin(mineral.relative_angle),  # Y component of angle
-                math.cos(mineral.relative_angle),  # X component of angle
+                max(0.0, 1.0 - (closest_asteroid.distance / MAX_RADAR_RANGE)),  # Normalize distance
+                math.sin(closest_asteroid.relative_angle),  # Y component of angle
+                math.cos(closest_asteroid.relative_angle),  # X component of angle
             ]
         )
+    else:
+        # Pad with safe default values if no asteroids are present
+        inputs_value.extend([1.0, 0.0, 1.0])
+    inputs_explanation.extend(
+        [
+            "Closest Asteroid Distance (normalized)",
+            "Closest Asteroid Relative Angle Sin (normalized)",
+            "Closest Asteroid Relative Angle Cos (normalized)",
+        ]
+    )
+
+
+    # Top 3 Closest Minerals (9 inputs_value)
+    closest_minerals = get_closest_mineral_info(ship, minerals, top_n=3)
+
+    for i in range(3):
+        if i < len(closest_minerals):
+            mineral = closest_minerals[i]
+            inputs_value.extend(
+                [
+                    max(0.0, 1.0 - (mineral.distance / MAX_RADAR_RANGE)),  # Normalize distance
+                    math.sin(mineral.relative_angle),  # Y component of angle
+                    math.cos(mineral.relative_angle),  # X component of angle
+                ]
+            )
+        else:
+            # Pad with safe default values for missing minerals
+            # Use max distance (1.0) and neutral angles (0.0, 1.0) for cos(0)
+            inputs_value.extend([1.0, 0.0, 1.0])
+
         inputs_explanation.extend(
             [
-                "Closest Mineral Distance (normalized)",
-                "Closest Mineral Relative Angle Sin (normalized)",
-                "Closest Mineral Relative Angle Cos (normalized)",
+                f"Mineral {i + 1} Distance (normalized)",
+                f"Mineral {i + 1} Relative Angle Sin (normalized)",
+                f"Mineral {i + 1} Relative Angle Cos (normalized)",
             ]
         )
+
+    assert len(inputs_value) == len(inputs_explanation), (
+        "Inputs and explanations must match in length - Mineral Info"
+    )
 
     return inputs_explanation, inputs_value
 
@@ -147,20 +182,38 @@ def run_simulation(genome, config, visualizer=None):
             turn_rate = (turn_output - 0.5) * 2 * 0.05
         else:
             turn_rate = 0
-        ship.angle += turn_rate 
+        ship.angle += turn_rate
         ship.angle = ship.angle % (2 * math.pi)
 
         # Bidirectional thrust (-1 = full backward, 0 = no thrust, 1 = full forward)
-        # Thrust: more nuanced control
+        # thrust_output=-1.0 -> thrust_power=-0.80
+        # thrust_output=-0.9 -> thrust_power=-0.69
+        # thrust_output=-0.8 -> thrust_power=-0.57
+        # thrust_output=-0.7 -> thrust_power=-0.46
+        # thrust_output=-0.6 -> thrust_power=-0.34
+        # thrust_output=-0.5 -> thrust_power=-0.23
+        # thrust_output=-0.4 -> thrust_power=-0.11
+        # thrust_output=-0.3 -> thrust_power=0.00
+        # thrust_output=-0.2 -> thrust_power=0.00
+        # thrust_output=-0.1 -> thrust_power=0.00
+        # thrust_output=0.0 -> thrust_power=0.00
+        # thrust_output=0.1 -> thrust_power=0.00
+        # thrust_output=0.2 -> thrust_power=0.00
+        # thrust_output=0.3 -> thrust_power=0.00
+        # thrust_output=0.4 -> thrust_power=0.14
+        # thrust_output=0.5 -> thrust_power=0.29
+        # thrust_output=0.6 -> thrust_power=0.43
+        # thrust_output=0.7 -> thrust_power=0.57
+        # thrust_output=0.8 -> thrust_power=0.71
+        # thrust_output=0.9 -> thrust_power=0.86
+        # thrust_output=1.0 -> thrust_power=1.00
         thrust_output = output[1]
-        
-        # Only apply thrust if output is significantly different from 0.5 (neutral)
-        if abs(thrust_output - 0.5) > 0.1:  # Dead zone for more stable behavior
-            thrust_power = (thrust_output - 0.5) * 2  # Convert to -1 to 1
-            # Scale thrust power more conservatively
-            thrust_power *= 0.7  # Reduce maximum thrust
+        if thrust_output < -0.3:
+            thrust_power = ((thrust_output + 0.3) / 0.7) * 0.8
+        elif thrust_output >= -0.3 and thrust_output <= 0.3:
+            thrust_power = 0
         else:
-            thrust_power = 0  # No thrust in dead zone
+            thrust_power = (thrust_output - 0.3) / 0.7
 
         dx = thrust_power * ship.speed * math.cos(ship.angle)
         dy = thrust_power * ship.speed * math.sin(ship.angle)
@@ -182,15 +235,15 @@ def run_simulation(genome, config, visualizer=None):
 
         # Enhanced fitness function
         # 1. Survival time with linear growth
-        survival_bonus = alive_frame_counter / 4
+        survival_bonus = alive_frame_counter / 10
 
-        # 2. Mineral collection bonus
-        mineral_bonus = ship.minerals * 100
+        # 2. Fuel gain bonus
+        fuel_gain_bonus = total_fuel_gain * 5  # Scale fuel gain to a reasonable range
 
         # Combine fitness components
         genome.fitness = (
             survival_bonus  # Main objective
-            + mineral_bonus  # Encourage mineral collection
+            + fuel_gain_bonus  # Encourage smart fuel collection
         )
 
         # Visualization
@@ -236,6 +289,8 @@ def run_simulation(genome, config, visualizer=None):
             or out_of_fuel
             or alive_frame_counter >= max_timeout_frame
         ):
+            if asteroid_collision:
+                genome.fitness -= 50
             break
 
 
@@ -312,6 +367,7 @@ def eval_genomes(genomes, config):
             best_in_generation, config, visualizer=visualizer
         )  # With visualization
 
+
 def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool = False):
     # Initialize pygame
     global screen, clock
@@ -340,14 +396,16 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
     # Create or restore population
     if continue_from_checkpoint:
         # Find the latest checkpoint
-        checkpoint_files = [f for f in os.listdir(checkpoints_dir) if f.startswith("neat-checkpoint-")]
+        checkpoint_files = [
+            f for f in os.listdir(checkpoints_dir) if f.startswith("neat-checkpoint-")
+        ]
         if checkpoint_files:
             # Sort by checkpoint number and get the latest
             checkpoint_files.sort(key=lambda x: int(x.split("-")[-1]))
             latest_checkpoint = os.path.join(checkpoints_dir, checkpoint_files[-1])
             print(f"🔄 Restoring from checkpoint: {latest_checkpoint}")
             population = neat.Checkpointer.restore_checkpoint(latest_checkpoint)
-            
+
             # Update config with restored population's generation
             visualizer.generation = population.generation
         else:
@@ -363,27 +421,29 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
     stats = neat.StatisticsReporter()
     population.add_reporter(stats)
     population.add_reporter(
-        neat.Checkpointer(25, filename_prefix=os.path.join(checkpoints_dir, "neat-checkpoint-"))
+        neat.Checkpointer(
+            25, filename_prefix=os.path.join(checkpoints_dir, "neat-checkpoint-")
+        )
     )
-    
+
     # Add our clean data reporter with checkpoint flag
     data_reporter = DataReporter(
-        output_dir=output_dir, 
-        config_file_path=config_file, 
-        continue_from_checkpoint=continue_from_checkpoint
+        output_dir=output_dir,
+        config_file_path=config_file,
+        continue_from_checkpoint=continue_from_checkpoint,
     )
     population.add_reporter(data_reporter)
 
     # Run NEAT
     try:
-        population.run(eval_genomes, 1000)
-        
+        population.run(eval_genomes, 5_000)
+
         # Save final summary
         data_reporter.save_final_summary()
-        
+
         # Fix: Use manual tracking or population.best_genome
-        winner = getattr(config, 'manual_best_genome', None) or population.best_genome
-        
+        winner = getattr(config, "manual_best_genome", None) or population.best_genome
+
         if not winner:
             raise ValueError("No winner genome found after training.")
 
@@ -400,7 +460,7 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
         with open(os.path.join(output_dir, "winner.pkl"), "wb") as f:
             pickle.dump(winner, f)
         print(f"Winner genome saved to {output_dir} as 'winner.pkl'")
- 
+
     finally:
         pygame.quit()
 

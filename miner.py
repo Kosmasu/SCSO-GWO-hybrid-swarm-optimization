@@ -25,7 +25,6 @@ pygame.display.set_caption("Space Miner - Debug Mode")
 # Debug panel scroll state
 debug_scroll_offset = 0
 debug_content_height = 0
-
 def draw_debug_panel(
     screen: pygame.Surface,
     ship: Spaceship,
@@ -81,14 +80,14 @@ def draw_debug_panel(
         input_idx += 1
     y_offset += 5
 
-    # Asteroid Radar Scan (16 inputs)
+    # Asteroid Radar Scan (12 inputs)
     draw_text("ASTEROID RADAR SCAN:", font_medium, (255, 255, 100), True)
     draw_text(
-        f"  16 directions, 300px max range",
+        f"  12 directions, 200px max range",
         font_small,
         (255, 255, 150),
     )
-    for i in range(16):
+    for i in range(12):
         if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
             explanation = inputs_explanation[input_idx]
             value = inputs_value[input_idx]
@@ -103,6 +102,40 @@ def draw_debug_panel(
             else:  # Clear path
                 color = (100, 255, 100)  # Light green
 
+            draw_text(f"  {explanation}: {value:.3f}", font_small, color)
+        input_idx += 1
+    y_offset += 5
+
+    # Top 1 Closest Asteroid (3 inputs) - NEW SECTION
+    draw_text("CLOSEST ASTEROID:", font_medium, (255, 100, 100), True)
+    closest_asteroids = get_closest_asteroid_info(ship, asteroids, top_n=1)
+    if closest_asteroids:
+        draw_text(
+            f"  Distance: {closest_asteroids[0].distance:.1f}px",
+            font_small,
+            (255, 150, 150),
+        )
+    else:
+        draw_text("  No asteroids found", font_small, (255, 150, 150))
+    
+    for i in range(3):
+        if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
+            explanation = inputs_explanation[input_idx]
+            value = inputs_value[input_idx]
+            
+            # Color code based on input type and value
+            color = WHITE
+            if "Distance" in explanation:
+                # Color code distance: red for close, green for far
+                if value > 0.8:  # Very close asteroid
+                    color = (255, 100, 100)  # Light red
+                elif value > 0.5:  # Medium distance
+                    color = (255, 255, 100)  # Yellow
+                else:  # Far asteroid
+                    color = (100, 255, 100)  # Light green
+            else:  # Angle components (sin/cos)
+                color = (255, 200, 200)  # Light red for angles
+            
             draw_text(f"  {explanation}: {value:.3f}", font_small, color)
         input_idx += 1
     y_offset += 5
@@ -129,11 +162,11 @@ def draw_debug_panel(
                 color = WHITE
                 if "Distance" in explanation:
                     # Color code distance: green for close, red for far
-                    if value < 0.3:  # Close mineral
+                    if value > 0.7:  # Close mineral
                         color = (100, 255, 100)  # Light green
-                    elif value < 0.6:  # Medium distance
+                    elif value > 0.3:  # Medium distance
                         color = (255, 255, 100)  # Yellow
-                    else:  # Far mineral
+                    else:  # Far mineral or padded
                         color = (255, 150, 150)  # Light red
                 else:  # Angle components (sin/cos)
                     color = (200, 200, 255)  # Light blue for angles
@@ -181,7 +214,6 @@ def draw_debug_panel(
     # Blit viewport to the right side of the window
     screen.blit(viewport, (WIDTH + 10, 10))
 
-
 def handle_debug_scroll(event):
     """Handle scrolling events for the debug panel"""
     global debug_scroll_offset
@@ -208,8 +240,8 @@ def main():
     minerals = [Mineral() for _ in range(5)]
     asteroids = [Asteroid() for _ in range(1)]
     asteroids[0].speed_x, asteroids[0].speed_y = (
-        1.0,
-        0.0,
+        2.0,
+        2.0,
     )
     asteroids[0].x, asteroids[0].y = 0, HEIGHT - 1
     running = True
@@ -312,8 +344,8 @@ def main():
             )  # Max radar range
 
             # RADAR SCAN VISUALIZATION            # RADAR SCAN VISUALIZATION
-            N_DIRECTIONS = 16  # Number of radar directions
-            MAX_RANGE = 300.0  # Maximum radar range
+            N_DIRECTIONS = 12  # Number of radar directions
+            MAX_RANGE = 200.0  # Maximum radar range
             radar_scan_results: list[RadarScanResult] = radar_scan(
                 ship, asteroids, n_directions=N_DIRECTIONS, max_range=MAX_RANGE
             )
