@@ -183,11 +183,11 @@ def run_simulation(genome, config, visualizer=None):
         # Turn rate (-1 = full left, -0.3 - 0.3 = no turn, 1 = full right)
         turn_output = output[0]
         if turn_output < -0.3:
-            turn_rate = ((turn_output + 0.3) / 0.7) * 0.05
+            turn_rate = ((turn_output + 0.3) / 0.7) * 0.15
         elif turn_output >= -0.3 and turn_output <= 0.3:
             turn_rate = 0
         else:
-            turn_rate = (turn_output - 0.3) / 0.7 * 0.05
+            turn_rate = ((turn_output - 0.3) / 0.7) * 0.15
         ship.angle += turn_rate
         ship.angle = ship.angle % (2 * math.pi)
 
