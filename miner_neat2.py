@@ -257,18 +257,16 @@ def run_simulation(genome, config, visualizer=None):
         )
         out_of_fuel = ship.fuel <= 0
 
+        base_timeout_frame = 12_000
         # Adaptive timeout based on performance and generation
         generation_bonus = min(
             20_000, config.visualizer.generation * 50
         )  # More time for later generations
-        base_timeout_frame = 12_000 + generation_bonus
 
         # Mineral-based bonus (encourages mineral collection)
         mineral_bonus = min(18_000, ship.minerals * 1000)
 
-        max_timeout_frame = base_timeout_frame + mineral_bonus
-        # Cap at reasonable maximum
-        max_timeout_frame = min(max_timeout_frame, 40_000)
+        max_timeout_frame = base_timeout_frame + mineral_bonus + generation_bonus
 
         if (
             asteroid_collision
@@ -345,7 +343,7 @@ def eval_genomes(genomes, config):
     visualizer.update_generation(best_in_generation)
 
     # Visualize the best genome from this generation (every 5th generation)
-    if best_in_generation and visualizer.generation % 5 == 0:
+    if best_in_generation and visualizer.generation % 25 == 0:
         print(
             f"Displaying generation {visualizer.generation} best (Fitness: {best_fitness:.1f})"
         )
