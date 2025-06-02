@@ -259,9 +259,7 @@ def run_simulation(genome, config, visualizer=None):
 
         base_timeout_frame = 12_000
         # Adaptive timeout based on performance and generation
-        generation_bonus = min(
-            20_000, config.visualizer.generation * 50
-        )  # More time for later generations
+        generation_bonus = config.visualizer.generation * 200
 
         # Mineral-based bonus (encourages mineral collection)
         mineral_bonus = min(18_000, ship.minerals * 1000)
@@ -274,7 +272,7 @@ def run_simulation(genome, config, visualizer=None):
             or alive_frame_counter >= max_timeout_frame
         ):
             if asteroid_collision:
-                genome.fitness -= 50
+                genome.fitness -= 200
             break
 
 
@@ -338,6 +336,13 @@ def eval_genomes(genomes, config):
         )  # Deep copy to avoid reference issues
         config.manual_best_fitness = best_fitness
         print(f"🏆 NEW OVERALL BEST: {best_fitness:.1f}")
+        
+        # Save the new best genome immediately
+        best_genome_filename = f"best_genome_gen_{visualizer.generation}_fitness_{best_fitness:.1f}.pkl"
+        best_genome_path = os.path.join(config.output_dir, best_genome_filename)
+        with open(best_genome_path, "wb") as f:
+            pickle.dump(config.manual_best_genome, f)
+        print(f"💾 Best genome saved: {best_genome_filename}")
 
     # Update visualizer with this generation's results
     visualizer.update_generation(best_in_generation)
@@ -376,6 +381,7 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
     # Set up visualizer
     visualizer = TrainingVisualizer()
     config.visualizer = visualizer
+    config.output_dir = output_dir  # Store output_dir in config for access in eval_genomes
 
     # Create or restore population
     if continue_from_checkpoint:
@@ -420,7 +426,7 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
 
     # Run NEAT
     try:
-        population.run(eval_genomes, 5_000)
+        population.run(eval_genomes, 1_000)
 
         # Save final summary
         data_reporter.save_final_summary()
