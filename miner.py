@@ -25,6 +25,8 @@ pygame.display.set_caption("Space Miner - Debug Mode")
 # Debug panel scroll state
 debug_scroll_offset = 0
 debug_content_height = 0
+
+
 def draw_debug_panel(
     screen: pygame.Surface,
     ship: Spaceship,
@@ -109,20 +111,18 @@ def draw_debug_panel(
     # Top 1 Closest Asteroid (3 inputs) - NEW SECTION
     draw_text("CLOSEST ASTEROID:", font_medium, (255, 100, 100), True)
     closest_asteroids = get_closest_asteroid_info(ship, asteroids, top_n=1)
-    if closest_asteroids:
+    for i, asteroid in enumerate(closest_asteroids):
         draw_text(
-            f"  Distance: {closest_asteroids[0].distance:.1f}px",
+            f"  Asteroid {i + 1}:",
             font_small,
             (255, 150, 150),
         )
-    else:
-        draw_text("  No asteroids found", font_small, (255, 150, 150))
-    
-    for i in range(3):
+
+    for i in range(6):
         if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
             explanation = inputs_explanation[input_idx]
             value = inputs_value[input_idx]
-            
+
             # Color code based on input type and value
             color = WHITE
             if "Distance" in explanation:
@@ -135,7 +135,7 @@ def draw_debug_panel(
                     color = (100, 255, 100)  # Light green
             else:  # Angle components (sin/cos)
                 color = (255, 200, 200)  # Light red for angles
-            
+
             draw_text(f"  {explanation}: {value:.3f}", font_small, color)
         input_idx += 1
     y_offset += 5
@@ -148,16 +148,16 @@ def draw_debug_panel(
         font_small,
         (150, 255, 150),
     )
-    
+
     for mineral_idx in range(3):  # Always show 3 mineral slots
         draw_text(f"  Mineral {mineral_idx + 1}:", font_small, (150, 255, 150))
-        
+
         # Each mineral has 3 inputs: distance, sin(angle), cos(angle)
         for i in range(3):
             if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
                 explanation = inputs_explanation[input_idx]
                 value = inputs_value[input_idx]
-                
+
                 # Color code based on input type and value
                 color = WHITE
                 if "Distance" in explanation:
@@ -170,7 +170,7 @@ def draw_debug_panel(
                         color = (255, 150, 150)  # Light red
                 else:  # Angle components (sin/cos)
                     color = (200, 200, 255)  # Light blue for angles
-                
+
                 draw_text(f"    {explanation}: {value:.3f}", font_small, color)
             input_idx += 1
         y_offset += 2  # Small gap between minerals
@@ -213,6 +213,7 @@ def draw_debug_panel(
 
     # Blit viewport to the right side of the window
     screen.blit(viewport, (WIDTH + 10, 10))
+
 
 def handle_debug_scroll(event):
     """Handle scrolling events for the debug panel"""
@@ -326,7 +327,8 @@ def main():
             # Collision detection
             dist = math.hypot(ship.x - asteroid.x, ship.y - asteroid.y)
             if dist < ship.radius + asteroid.radius:
-                running = False
+                # running = False
+                print("Collision with asteroid! Game Over!")
 
         # Draw everything
         for mineral in minerals:
@@ -353,10 +355,10 @@ def main():
             for i, result in enumerate(radar_scan_results):
                 # Calculate absolute angle for visualization
                 absolute_angle = ship.angle + result.angle
-                
+
                 # Calculate end point based on surface distance + ship radius
                 actual_beam_distance = result.distance + ship.radius
-                
+
                 if result.distance < MAX_RANGE:
                     # Found an asteroid - draw red line to collision point
                     end_x = ship.x + actual_beam_distance * math.cos(absolute_angle)
@@ -369,7 +371,9 @@ def main():
                         2,
                     )
                     # Draw collision point
-                    pygame.draw.circle(debug_screen, (255, 255, 0), (int(end_x), int(end_y)), 3)
+                    pygame.draw.circle(
+                        debug_screen, (255, 255, 0), (int(end_x), int(end_y)), 3
+                    )
                 else:
                     # No obstacle - draw green line to max range
                     end_x = ship.x + MAX_RANGE * math.cos(absolute_angle)

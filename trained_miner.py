@@ -5,7 +5,8 @@ import math
 import os
 #from miner import Spaceship, Mineral, Asteroid  # Import your game classes random
 #from miner_harness import Spaceship, Mineral, Asteroid  # Import your game classes fixed locations
-from miner_harness2 import Spaceship, Mineral, Asteroid 
+from miner_harness2 import Spaceship, Mineral, Asteroid
+from miner_neat2 import get_neat_inputs 
 #from miner_harness3 import Spaceship, Mineral, Asteroid 
 
 WHITE = (255, 255, 255)
@@ -20,7 +21,7 @@ def load_trained_model(filename):
         save_data = pickle.load(f)
     
     print(f"Model loaded from {filename}")
-    return save_data['genome']
+    return save_data
 
 def run_with_trained_model():
     # Initialize pygame
@@ -40,7 +41,7 @@ def run_with_trained_model():
                         config_file)
 
     # Load the trained model
-    genome = load_trained_model('trained_miner.pkl')
+    genome = load_trained_model('output/neat/20250603-131019/best_genome_gen_46_fitness_21720.7.pkl')
     
     # Create the neural network
     net = neat.nn.FeedForwardNetwork.create(genome, config)
@@ -60,48 +61,45 @@ def run_with_trained_model():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-        
-        # Find closest objects
-        closest_mineral = min((m for m in minerals if m), 
-                            key=lambda m: math.hypot(ship.x-m.x, ship.y-m.y))
-        closest_asteroid = min(asteroids,
-                             key=lambda a: math.hypot(ship.x-a.x, ship.y-a.y))
 
-        # Calculate current distances
-        mineral_dist = math.hypot(ship.x-closest_mineral.x, ship.y-closest_mineral.y)
-        asteroid_dist = math.hypot(ship.x-closest_asteroid.x, ship.y-closest_asteroid.y)
-        
-        inputs = [
-            #math.hypot(ship.x - closest_mineral.x)/WIDTH if closest_mineral else 0,
-            mineral_dist,
-            math.atan2(closest_mineral.y-ship.y, closest_mineral.x-ship.x)/math.pi if closest_mineral else 0,
-            #math.hypot(ship.x - closest_asteroid.x)/WIDTH if closest_asteroid else 0,
-            asteroid_dist,
-            #max(min(ship.fuel/100.0, 1.0), 0.0)
-            math.atan2(closest_asteroid.y-ship.y, closest_asteroid.x-ship.x)/math.pi if closest_asteroid else 0
-        ]
+        _, inputs = get_neat_inputs(ship, minerals, asteroids)
         
         # Get network output
         output = net.activate(inputs)
         
         # Execute actions (same as in training)
-        theta_max=math.radians(45)
-        ship.angle = output[0]*theta_max
+        turn_output = output[0]
+        if turn_output < -0.3:
+            turn_rate = ((turn_output + 0.3) / 0.7) * 0.15
+        elif turn_output >= -0.3 and turn_output <= 0.3:
+            turn_rate = 0
+        else:
+            turn_rate = ((turn_output - 0.3) / 0.7) * 0.15
+        ship.angle += turn_rate
+        ship.angle = ship.angle % (2 * math.pi)
         #ship.angle = angular_velocity * 0.1
-        if output[1] >= 0:  # Thrust
-            dx = ship.speed * math.cos(ship.angle)
-            dy = ship.speed * math.sin(ship.angle)
-            ship.move(dx, dy)
+        thrust_output = output[1]
+        if thrust_output < -0.3:
+            thrust_power = ((thrust_output + 0.3) / 0.7) * 0.8
+        elif thrust_output >= -0.3 and thrust_output <= 0.3:
+            thrust_power = 0
+        else:
+            thrust_power = (thrust_output - 0.3) / 0.7
+
+        dx = thrust_power * ship.speed * math.cos(ship.angle)
+        dy = thrust_power * ship.speed * math.sin(ship.angle)
+        ship.move(dx, dy)
             
-        if output[2] > 0.5:  # Mine
-            minerals_to_remove = []
-            for mineral in minerals:
-                if mineral and math.hypot(ship.x-mineral.x, ship.y-mineral.y) < ship.radius + mineral.radius:
-                    minerals_to_remove.append(mineral)
-                    successful_minings += 1
-                    ship.minerals += 1
-                    ship.fuel = min(100, ship.fuel + 15)
-            minerals = [m for m in minerals if m not in minerals_to_remove]
+        minerals_to_remove = []
+        for mineral in minerals:
+            if mineral and math.hypot(ship.x-mineral.x, ship.y-mineral.y) < ship.radius + mineral.radius:
+                minerals_to_remove.append(mineral)
+                successful_minings += 1
+                ship.minerals += 1
+                ship.fuel = min(100, ship.fuel + 15)
+        minerals = [m for m in minerals if m not in minerals_to_remove]
+        if len(minerals) < 3:  # Spawn new minerals if too few
+            minerals.extend(Mineral() for _ in range(2))
             
         
         # Asteroid movement
@@ -134,31 +132,7 @@ def run_with_trained_model():
             screen.blit(text, (10, 10 + i * 25))
         
         pygame.display.flip()
-        clock.tick(30)
-
-    running=True
-    while running:
-        screen.fill(BLACK)
-
-        # Handle events
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-        stats = [
-            f"Minerals: {ship.minerals}",
-            f"Alive Time: {alive_time:0.1f}",
-            f"Fuel: {ship.fuel:.1f}",
-            f"Score: {ship.minerals*100+alive_time/4:.1f}",
-        ]
-        for i, stat in enumerate(stats):
-            text = font.render(stat, True, (255, 255, 255))
-            screen.blit(text, (10, 10 + i * 25))
-        text = font.render("END", True, (255, 4, 5))
-        screen.blit(text, (int(HEIGHT/2), WIDTH/2))
-
-        pygame.display.flip()
-        clock.tick(60)   
-    pygame.quit()
+        clock.tick(60)
 
 if __name__ == "__main__":
     run_with_trained_model()

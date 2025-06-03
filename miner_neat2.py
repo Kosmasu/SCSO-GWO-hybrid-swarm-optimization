@@ -7,7 +7,7 @@ import time
 import copy
 
 from custom_reporter import DataReporter
-from data import BLACK, WIDTH, HEIGHT, WHITE
+from data import ASTEROID_MAX_SPEED, BLACK, WIDTH, HEIGHT, WHITE
 from game import (
     Asteroid,
     Mineral,
@@ -83,6 +83,7 @@ def get_neat_inputs(
     )
 
     # Top 1 Closest Asteroid (3 inputs_value)
+    MAX_ASTEROID_SPEED_NORMAL = math.sqrt(ASTEROID_MAX_SPEED**2 + ASTEROID_MAX_SPEED**2)
     closest_asteroids = get_closest_asteroid_info(ship, asteroids, top_n=1)
     if closest_asteroids:
         closest_asteroid = closest_asteroids[0]
@@ -93,6 +94,9 @@ def get_neat_inputs(
                 ),  # Normalize distance
                 math.sin(closest_asteroid.relative_angle),  # Y component of angle
                 math.cos(closest_asteroid.relative_angle),  # X component of angle
+                math.sin(closest_asteroid.velocity_angle),  # Y component of velocity direction
+                math.cos(closest_asteroid.velocity_angle),  # X component of velocity direction
+                closest_asteroid.velocity_magnitude / MAX_ASTEROID_SPEED_NORMAL,  # Normalized velocity magnitude (assuming max ~5)
             ]
         )
     else:
@@ -103,6 +107,9 @@ def get_neat_inputs(
             "Closest Asteroid Distance (normalized)",
             "Closest Asteroid Relative Angle Sin (normalized)",
             "Closest Asteroid Relative Angle Cos (normalized)",
+            "Asteroid Relative Velocity Direction Sin",
+            "Asteroid Relative Velocity Direction Cos", 
+            "Asteroid Relative Velocity Magnitude"
         ]
     )
 
@@ -161,6 +168,8 @@ def run_simulation(genome, config, visualizer=None):
     alive_frame_counter = 0
     dx, dy = 0, 0
     total_fuel_gain = 0
+    backward_movement_counter = 0
+    total_movement_counter = 0
 
     if visualizer:
         visualizer.start_time = time.time()
@@ -201,6 +210,12 @@ def run_simulation(genome, config, visualizer=None):
         else:
             thrust_power = (thrust_output - 0.3) / 0.7
 
+        # Track backward movement
+        if thrust_power != 0:
+            total_movement_counter += 1
+            if thrust_power < 0:  # Backward movement
+                backward_movement_counter += 1
+
         dx = thrust_power * ship.speed * math.cos(ship.angle)
         dy = thrust_power * ship.speed * math.sin(ship.angle)
         ship.move(dx, dy)
@@ -221,15 +236,30 @@ def run_simulation(genome, config, visualizer=None):
 
         # Enhanced fitness function
         # 1. Survival time with linear growth
-        survival_bonus = alive_frame_counter / 10
+        survival_bonus = alive_frame_counter / 4
 
         # 2. Fuel gain bonus
         fuel_gain_bonus = total_fuel_gain * 5  # Scale fuel gain to a reasonable range
+
+        # 3. Mineral collection bonus
+        mineral_collection_bonus = ship.minerals * 100  # Encourage mineral collection
+
+        # 4. Backward movement penalty
+        backward_penalty = 0
+        if total_movement_counter > 0:
+            backward_ratio = backward_movement_counter / total_movement_counter
+            # Penalize if more than 30% of movement is backward
+            if backward_ratio > 0.3:
+                # Scale penalty based on how much over 30% they are
+                excess_backward = backward_ratio - 0.3
+                backward_penalty = excess_backward * 300  # Adjust multiplier as needed
 
         # Combine fitness components
         genome.fitness = (
             survival_bonus  # Main objective
             + fuel_gain_bonus  # Encourage smart fuel collection
+            + mineral_collection_bonus  # Encourage mining
+            - backward_penalty  # Penalize excessive backward movement
         )
 
         # Visualization
@@ -348,7 +378,7 @@ def eval_genomes(genomes, config):
     visualizer.update_generation(best_in_generation)
 
     # Visualize the best genome from this generation (every 5th generation)
-    if best_in_generation and visualizer.generation % 25 == 0:
+    if best_in_generation and visualizer.generation % 5 == 0:
         print(
             f"Displaying generation {visualizer.generation} best (Fitness: {best_fitness:.1f})"
         )

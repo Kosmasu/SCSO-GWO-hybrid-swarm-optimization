@@ -8,7 +8,7 @@ from game import Asteroid, Mineral, Spaceship
 from miner_neat2 import TrainingVisualizer, get_neat_inputs
 
 
-WINNER_DIR = "output/neat/experiment-4/winner.pkl"
+WINNER_DIR = "output/neat/20250603-152148/best_genome_gen_24_fitness_4697.7.pkl"
 
 
 def run_simulation(genome, config, visualizer=None):
@@ -127,24 +127,7 @@ def run_simulation(genome, config, visualizer=None):
         )
         out_of_fuel = ship.fuel <= 0
 
-        # Adaptive timeout based on performance and generation
-        generation_bonus = min(
-            20_000, config.visualizer.generation * 50
-        )  # More time for later generations
-        base_timeout_frame = 12_000 + generation_bonus
-
-        # Mineral-based bonus (encourages mineral collection)
-        mineral_bonus = min(18_000, ship.minerals * 1000)
-
-        max_timeout_frame = base_timeout_frame + mineral_bonus
-        # Cap at reasonable maximum
-        max_timeout_frame = min(max_timeout_frame, 40_000)
-
-        if (
-            asteroid_collision
-            or out_of_fuel
-            or alive_frame_counter >= max_timeout_frame
-        ):
+        if asteroid_collision or out_of_fuel:
             if asteroid_collision:
                 genome.fitness -= 50
             break

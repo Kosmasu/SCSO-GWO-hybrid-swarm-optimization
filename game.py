@@ -224,7 +224,6 @@ def calculate_relative_angle(
 class MineralInfo(BaseModel):
     distance: float
     relative_angle: float
-    mineral: Mineral
 
 
 def get_closest_mineral_info(
@@ -262,7 +261,6 @@ def get_closest_mineral_info(
             MineralInfo(
                 distance=surface_distance,
                 relative_angle=relative_angle,
-                mineral=mineral,
             )
         )
 
@@ -276,8 +274,9 @@ def get_closest_mineral_info(
 class AsteroidInfo(BaseModel):
     distance: float
     relative_angle: float
+    velocity_angle: float  # Add this field
+    velocity_magnitude: float  # Add this field for completeness
     future_positions: list[tuple[float, float]]  # [(distance, angle), ...]
-    asteroid: Asteroid
 
 
 def get_closest_asteroid_info(
@@ -316,6 +315,17 @@ def get_closest_asteroid_info(
             ship.angle, ship.x, ship.y, asteroid.x, asteroid.y
         )
 
+        # Calculate asteroid velocity angle and magnitude
+        velocity_magnitude = math.sqrt(asteroid.speed_x**2 + asteroid.speed_y**2)
+        velocity_angle_absolute = math.atan2(asteroid.speed_y, asteroid.speed_x)
+
+        # Convert to relative angle (relative to ship's heading)
+        velocity_angle_relative = velocity_angle_absolute - ship.angle
+        while velocity_angle_relative > math.pi:
+            velocity_angle_relative -= 2 * math.pi
+        while velocity_angle_relative < -math.pi:
+            velocity_angle_relative += 2 * math.pi
+
         # Calculate future positions at multiple time steps
         future_positions = []
         for frames in future_frames:
@@ -340,8 +350,9 @@ def get_closest_asteroid_info(
             AsteroidInfo(
                 distance=surface_distance,
                 relative_angle=relative_angle,
+                velocity_angle=velocity_angle_relative,
+                velocity_magnitude=velocity_magnitude,
                 future_positions=future_positions,
-                asteroid=asteroid,
             )
         )
 
@@ -373,9 +384,11 @@ def count_asteroids_in_radius(
             proximity_asteroids.append(asteroid)
     return proximity_asteroids
 
+
 class RadarScanResult(BaseModel):
     distance: float
     angle: float
+
 
 def radar_scan(
     ship: Spaceship,
@@ -383,7 +396,6 @@ def radar_scan(
     n_directions: int = 24,
     max_range: float = 300.0,
 ) -> list[RadarScanResult]:
-
     radar_results: list[RadarScanResult] = []
 
     # Calculate angle step for each direction
@@ -426,7 +438,7 @@ def radar_scan(
                 if dot_product >= angular_tolerance:
                     # Calculate surface-to-surface distance (distance to edge of asteroid)
                     surface_distance = max(0, distance - ship.radius - asteroid.radius)
-                    
+
                     # Keep track of the closest obstacle in this direction
                     closest_distance = min(closest_distance, surface_distance)
 
