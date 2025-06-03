@@ -33,7 +33,7 @@ class Spaceship(BaseModel):
 
     def move(self, dx: float, dy: float) -> None:
         if self.fuel > 0:
-            # Store the velocity for AI input calculation
+            # Store the actual velocity for AI input calculation
             self.velocity_x = dx
             self.velocity_y = dy
             self.x = (self.x + dx) % WIDTH
@@ -124,9 +124,9 @@ class Asteroid(BaseModel):
         default_factory=lambda: random.uniform(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED)
     )
 
-    def move(self) -> None:
-        self.x = (self.x + self.speed_x) % WIDTH
-        self.y = (self.y + self.speed_y) % HEIGHT
+    def move(self, speed_multiplier: float = 1.0) -> None:
+        self.x = (self.x + self.speed_x * speed_multiplier) % WIDTH
+        self.y = (self.y + self.speed_y * speed_multiplier) % HEIGHT
 
     def draw(self, screen) -> None:
         pygame.draw.circle(screen, RED, (int(self.x), int(self.y)), self.radius)

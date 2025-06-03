@@ -21,6 +21,34 @@ if not pygame.get_init():
     pygame.init()
 
 
+def handle_steering(output: list[float]):
+    """
+    Handle steering based on the output from the neural network.
+    The output is expected to be in the range [-1, 1] for turning left and right.
+    """
+    turn_output = output[0]
+    if turn_output < -0.3:
+        return ((turn_output + 0.3) / 0.7) * 0.15  # Full left
+    elif turn_output >= -0.3 and turn_output <= 0.3:
+        return 0  # No turn
+    else:
+        return ((turn_output - 0.3) / 0.7) * 0.15  # Full right
+
+
+def handle_thrusting(output: list[float]):
+    """
+    Handle thrusting based on the output from the neural network.
+    The output is expected to be in the range [-1, 1] for backward and forward thrust.
+    """
+    thrust_output = output[1]
+    if thrust_output < -0.3:
+        return ((thrust_output + 0.3) / 0.7) * 0.8  # Full backward
+    elif thrust_output >= -0.3 and thrust_output <= 0.3:
+        return 0  # No thrust
+    else:
+        return (thrust_output - 0.3) / 0.7  # Full forward
+
+
 def get_neat_inputs(
     ship: Spaceship, minerals: list[Mineral], asteroids: list[Asteroid]
 ) -> tuple[list[str], list[float]]:
@@ -94,22 +122,27 @@ def get_neat_inputs(
                 ),  # Normalize distance
                 math.sin(closest_asteroid.relative_angle),  # Y component of angle
                 math.cos(closest_asteroid.relative_angle),  # X component of angle
-                math.sin(closest_asteroid.velocity_angle),  # Y component of velocity direction
-                math.cos(closest_asteroid.velocity_angle),  # X component of velocity direction
-                closest_asteroid.velocity_magnitude / MAX_ASTEROID_SPEED_NORMAL,  # Normalized velocity magnitude (assuming max ~5)
+                math.sin(
+                    closest_asteroid.velocity_angle
+                ),  # Y component of velocity direction
+                math.cos(
+                    closest_asteroid.velocity_angle
+                ),  # X component of velocity direction
+                closest_asteroid.velocity_magnitude
+                / MAX_ASTEROID_SPEED_NORMAL,  # Normalized velocity magnitude (assuming max ~5)
             ]
         )
     else:
         # Pad with safe default values if no asteroids are present
-        inputs_value.extend([1.0, 0.0, 1.0])
+        inputs_value.extend([1.0, 0.0, 1.0, 0.0, 1.0, 0.0])
     inputs_explanation.extend(
         [
             "Closest Asteroid Distance (normalized)",
             "Closest Asteroid Relative Angle Sin (normalized)",
             "Closest Asteroid Relative Angle Cos (normalized)",
             "Asteroid Relative Velocity Direction Sin",
-            "Asteroid Relative Velocity Direction Cos", 
-            "Asteroid Relative Velocity Magnitude"
+            "Asteroid Relative Velocity Direction Cos",
+            "Asteroid Relative Velocity Magnitude",
         ]
     )
 
@@ -151,11 +184,55 @@ def get_neat_inputs(
 def run_simulation(genome, config, visualizer=None):
     net = neat.nn.FeedForwardNetwork.create(genome, config)
     ship = Spaceship()
-    minerals: list[Mineral] = [Mineral() for _ in range(5)]
+
+    minerals: list[Mineral] = []
     asteroids: list[Asteroid] = []
 
     # Generate initial asteroids
-    for _ in range(8):
+    generation = config.visualizer.generation if visualizer else 0
+    if generation < 20: 
+        # To learn how to move and mine
+        # How to steer and how to thrust
+        MINERAL_COUNT = 1
+        ASTEROID_COUNT = 0
+        MAX_FRAME = 2000
+        ASTEROID_SPEED_MULTIPLIER = 0
+        DIFFICULTY_MULTIPLIER = 0.25
+    elif generation < 50:
+        # Learn to avoid 3 super-slow asteroids
+        MINERAL_COUNT = 2
+        ASTEROID_COUNT = 3
+        MAX_FRAME = 4000
+        ASTEROID_SPEED_MULTIPLIER = 0.25
+        DIFFICULTY_MULTIPLIER = 0.35
+    elif generation < 100:
+        # Learn to avoid 5 slow asteroids
+        MINERAL_COUNT = 3
+        ASTEROID_COUNT = 5
+        MAX_FRAME = 6000
+        ASTEROID_SPEED_MULTIPLIER = 0.7
+        DIFFICULTY_MULTIPLIER = 0.6
+    elif generation < 150:
+        # Learn to avoid 8 slow steroids
+        MINERAL_COUNT = 3
+        ASTEROID_COUNT = 8
+        MAX_FRAME = 8000
+        ASTEROID_SPEED_MULTIPLIER = 0.7
+        DIFFICULTY_MULTIPLIER = 0.8
+    else:
+        # Learning full game mechanics
+        MINERAL_COUNT = 5
+        ASTEROID_COUNT = 8
+        MAX_FRAME = 100_000
+        ASTEROID_SPEED_MULTIPLIER = 1
+        DIFFICULTY_MULTIPLIER = 1.0
+
+    # Initialize minerals
+    for _ in range(MINERAL_COUNT):
+        minerals.append(Mineral())
+
+    # Initialize asteroids
+    for _ in range(ASTEROID_COUNT):
         asteroid = Asteroid()
         # Ensure asteroids are not too close to the ship. At least 100 pixels away
         while (
@@ -170,6 +247,12 @@ def run_simulation(genome, config, visualizer=None):
     total_fuel_gain = 0
     backward_movement_counter = 0
     total_movement_counter = 0
+
+    # Add spinning tracking variables
+    total_angle_change = 0
+    significant_turn_counter = 0
+    total_turn_counter = 0
+    previous_angle = ship.angle
 
     if visualizer:
         visualizer.start_time = time.time()
@@ -188,27 +271,9 @@ def run_simulation(genome, config, visualizer=None):
         # Get actions from network
         output = net.activate(inputs_value)
 
-        # tanh compatible
-        # Turn rate (-1 = full left, -0.3 - 0.3 = no turn, 1 = full right)
-        turn_output = output[0]
-        if turn_output < -0.3:
-            turn_rate = ((turn_output + 0.3) / 0.7) * 0.15
-        elif turn_output >= -0.3 and turn_output <= 0.3:
-            turn_rate = 0
-        else:
-            turn_rate = ((turn_output - 0.3) / 0.7) * 0.15
-        ship.angle += turn_rate
+        ship.angle += handle_steering(output)
         ship.angle = ship.angle % (2 * math.pi)
-
-        # tanh compatible
-        # Bidirectional thrust (-1 = full backward, -0.3 - 0,3 = no thrust, 1 = full forward)
-        thrust_output = output[1]
-        if thrust_output < -0.3:
-            thrust_power = ((thrust_output + 0.3) / 0.7) * 0.8
-        elif thrust_output >= -0.3 and thrust_output <= 0.3:
-            thrust_power = 0
-        else:
-            thrust_power = (thrust_output - 0.3) / 0.7
+        thrust_power = handle_thrusting(output)
 
         # Track backward movement
         if thrust_power != 0:
@@ -232,7 +297,7 @@ def run_simulation(genome, config, visualizer=None):
 
         # Move asteroids
         for asteroid in asteroids:
-            asteroid.move()
+            asteroid.move(ASTEROID_SPEED_MULTIPLIER)
 
         # Enhanced fitness function
         # 1. Survival time with linear growth
@@ -253,6 +318,25 @@ def run_simulation(genome, config, visualizer=None):
                 # Scale penalty based on how much over 30% they are
                 excess_backward = backward_ratio - 0.3
                 backward_penalty = excess_backward * 300  # Adjust multiplier as needed
+        # 5. Spinning penalty
+        spinning_penalty = 0
+        if alive_frame_counter > 100:  # Only start penalizing after some initial frames
+            # Calculate average angle change per frame
+            avg_angle_change_per_frame = total_angle_change / alive_frame_counter
+
+            # Penalize excessive turning
+            if avg_angle_change_per_frame > 0.02:  # Adjust threshold as needed
+                excess_spinning = avg_angle_change_per_frame - 0.02
+                spinning_penalty = excess_spinning * 5000  # Adjust multiplier as needed
+
+            # Alternative: Penalize high ratio of significant turns
+            if total_turn_counter > 0:
+                significant_turn_ratio = significant_turn_counter / total_turn_counter
+                if (
+                    significant_turn_ratio > 0.6
+                ):  # More than 60% of turns are significant
+                    excess_significant_turns = significant_turn_ratio - 0.6
+                    spinning_penalty += excess_significant_turns * 200
 
         # Combine fitness components
         genome.fitness = (
@@ -260,7 +344,8 @@ def run_simulation(genome, config, visualizer=None):
             + fuel_gain_bonus  # Encourage smart fuel collection
             + mineral_collection_bonus  # Encourage mining
             - backward_penalty  # Penalize excessive backward movement
-        )
+            - spinning_penalty  # Penalize excessive spinning
+        ) * DIFFICULTY_MULTIPLIER
 
         # Visualization
         if visualizer:
@@ -277,14 +362,18 @@ def run_simulation(genome, config, visualizer=None):
             pygame.display.flip()
             clock.tick(60)
 
-        closest_asteroid = min(
-            (a for a in asteroids), key=lambda a: math.hypot(ship.x - a.x, ship.y - a.y)
-        )
-        # Termination conditions
-        asteroid_collision = (
-            math.hypot(ship.x - closest_asteroid.x, ship.y - closest_asteroid.y)
-            < ship.radius + closest_asteroid.radius
-        )
+        if asteroids:
+            closest_asteroid = min(
+                (a for a in asteroids),
+                key=lambda a: math.hypot(ship.x - a.x, ship.y - a.y),
+            )
+            # Termination conditions
+            asteroid_collision = (
+                math.hypot(ship.x - closest_asteroid.x, ship.y - closest_asteroid.y)
+                < ship.radius + closest_asteroid.radius
+            )
+        else:
+            asteroid_collision = False
         out_of_fuel = ship.fuel <= 0
 
         base_timeout_frame = 12_000
@@ -294,7 +383,9 @@ def run_simulation(genome, config, visualizer=None):
         # Mineral-based bonus (encourages mineral collection)
         mineral_bonus = min(18_000, ship.minerals * 1000)
 
-        max_timeout_frame = base_timeout_frame + mineral_bonus + generation_bonus
+        max_timeout_frame = min(
+            base_timeout_frame + mineral_bonus + generation_bonus, MAX_FRAME
+        )
 
         if (
             asteroid_collision
@@ -366,9 +457,11 @@ def eval_genomes(genomes, config):
         )  # Deep copy to avoid reference issues
         config.manual_best_fitness = best_fitness
         print(f"🏆 NEW OVERALL BEST: {best_fitness:.1f}")
-        
+
         # Save the new best genome immediately
-        best_genome_filename = f"best_genome_gen_{visualizer.generation}_fitness_{best_fitness:.1f}.pkl"
+        best_genome_filename = (
+            f"best_genome_gen_{visualizer.generation}_fitness_{best_fitness:.1f}.pkl"
+        )
         best_genome_path = os.path.join(config.output_dir, best_genome_filename)
         with open(best_genome_path, "wb") as f:
             pickle.dump(config.manual_best_genome, f)
@@ -411,7 +504,9 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
     # Set up visualizer
     visualizer = TrainingVisualizer()
     config.visualizer = visualizer
-    config.output_dir = output_dir  # Store output_dir in config for access in eval_genomes
+    config.output_dir = (
+        output_dir  # Store output_dir in config for access in eval_genomes
+    )
 
     # Create or restore population
     if continue_from_checkpoint:

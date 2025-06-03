@@ -80,10 +80,10 @@ def continue_training(output_dir=None):
 
 if __name__ == "__main__":
     # Option 1: Continue from specific directory
-    # SPECIFIC_OUTPUT_DIR = "output/neat/20250526-204754"
+    SPECIFIC_OUTPUT_DIR = "output/neat/20250603-163922"
     
     # Option 2: Auto-find latest directory (set to None)
-    SPECIFIC_OUTPUT_DIR = None
+    # SPECIFIC_OUTPUT_DIR = None
     
     # Check if specific directory exists
     if SPECIFIC_OUTPUT_DIR and os.path.exists(SPECIFIC_OUTPUT_DIR):
