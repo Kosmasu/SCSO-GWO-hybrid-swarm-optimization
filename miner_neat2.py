@@ -190,41 +190,68 @@ def run_simulation(genome, config, visualizer=None):
 
     # Generate initial asteroids
     generation = config.visualizer.generation if visualizer else 0
-    if generation < 20: 
-        # To learn how to move and mine
-        # How to steer and how to thrust
-        MINERAL_COUNT = 1
-        ASTEROID_COUNT = 0
+    if generation < 10: 
+        # Pure movement and mining learning - NO asteroids
+        MINERAL_COUNT = 3
+        ASTEROID_COUNT = 0  # No asteroids at all
         MAX_FRAME = 2000
         ASTEROID_SPEED_MULTIPLIER = 0
-        DIFFICULTY_MULTIPLIER = 0.25
-    elif generation < 50:
-        # Learn to avoid 3 super-slow asteroids
-        MINERAL_COUNT = 2
-        ASTEROID_COUNT = 3
+        DIFFICULTY_MULTIPLIER = 1.0  # Full fitness signal for learning basics
+    elif generation < 30:
+        # Learn basic movement with stationary obstacles
+        MINERAL_COUNT = 3
+        ASTEROID_COUNT = 1
+        MAX_FRAME = 3000
+        ASTEROID_SPEED_MULTIPLIER = 0  # Stationary asteroids
+        DIFFICULTY_MULTIPLIER = 1.0
+    elif generation < 60:
+        # Introduce very slow moving asteroids
+        MINERAL_COUNT = 3
+        ASTEROID_COUNT = 2
         MAX_FRAME = 4000
-        ASTEROID_SPEED_MULTIPLIER = 0.25
-        DIFFICULTY_MULTIPLIER = 0.35
+        ASTEROID_SPEED_MULTIPLIER = 0.1  # Very slow
+        DIFFICULTY_MULTIPLIER = 1.0
     elif generation < 100:
-        # Learn to avoid 5 slow asteroids
+        # Slightly faster asteroids
+        MINERAL_COUNT = 3
+        ASTEROID_COUNT = 3
+        MAX_FRAME = 5000
+        ASTEROID_SPEED_MULTIPLIER = 0.25
+        DIFFICULTY_MULTIPLIER = 1.0
+    elif generation < 150:
+        # More asteroids, still manageable speed
+        MINERAL_COUNT = 3
+        ASTEROID_COUNT = 4
+        MAX_FRAME = 6000
+        ASTEROID_SPEED_MULTIPLIER = 0.35
+        DIFFICULTY_MULTIPLIER = 1.0
+    elif generation < 200:
+        # Increase asteroid count
         MINERAL_COUNT = 3
         ASTEROID_COUNT = 5
-        MAX_FRAME = 6000
-        ASTEROID_SPEED_MULTIPLIER = 0.7
-        DIFFICULTY_MULTIPLIER = 0.6
-    elif generation < 150:
-        # Learn to avoid 8 slow steroids
-        MINERAL_COUNT = 3
-        ASTEROID_COUNT = 8
+        MAX_FRAME = 7000
+        ASTEROID_SPEED_MULTIPLIER = 0.45
+        DIFFICULTY_MULTIPLIER = 1.0
+    elif generation < 300:
+        # More challenging
+        MINERAL_COUNT = 4
+        ASTEROID_COUNT = 6
         MAX_FRAME = 8000
-        ASTEROID_SPEED_MULTIPLIER = 0.7
-        DIFFICULTY_MULTIPLIER = 0.8
+        ASTEROID_SPEED_MULTIPLIER = 0.6
+        DIFFICULTY_MULTIPLIER = 1.0
+    elif generation < 400:
+        # Near full difficulty
+        MINERAL_COUNT = 4
+        ASTEROID_COUNT = 7
+        MAX_FRAME = 10000
+        ASTEROID_SPEED_MULTIPLIER = 0.8
+        DIFFICULTY_MULTIPLIER = 1.0
     else:
-        # Learning full game mechanics
+        # Full game mechanics
         MINERAL_COUNT = 5
         ASTEROID_COUNT = 8
         MAX_FRAME = 100_000
-        ASTEROID_SPEED_MULTIPLIER = 1
+        ASTEROID_SPEED_MULTIPLIER = 1.0
         DIFFICULTY_MULTIPLIER = 1.0
 
     # Initialize minerals
@@ -287,8 +314,8 @@ def run_simulation(genome, config, visualizer=None):
 
         fuel_before = ship.fuel
         ship.mine(minerals)
-        if len(minerals) < 3:
-            minerals.extend(Mineral() for _ in range(2))
+        if len(minerals) < MINERAL_COUNT:
+            minerals.append(Mineral())
         fuel_gain = ship.fuel - fuel_before
 
         # Accumulate positive fuel gains only
@@ -299,52 +326,53 @@ def run_simulation(genome, config, visualizer=None):
         for asteroid in asteroids:
             asteroid.move(ASTEROID_SPEED_MULTIPLIER)
 
-        # Enhanced fitness function
+        # Enhanced fitness function with generation-aware scaling
         # 1. Survival time with linear growth
         survival_bonus = alive_frame_counter / 4
 
-        # 2. Fuel gain bonus
-        fuel_gain_bonus = total_fuel_gain * 5  # Scale fuel gain to a reasonable range
+        # 2. Fuel gain bonus (more important in early generations)
+        fuel_gain_bonus = total_fuel_gain * (10 if generation < 50 else 5)
 
-        # 3. Mineral collection bonus
-        mineral_collection_bonus = ship.minerals * 100  # Encourage mineral collection
+        # 3. Mineral collection bonus (scaled by generation)
+        mineral_collection_bonus = ship.minerals * (200 if generation < 100 else 100)
 
-        # 4. Backward movement penalty
+        # 4. Movement encouragement (early generations only)
+        movement_bonus = 0
+        if generation < 50 and total_movement_counter > 0:
+            # Encourage any movement in early generations
+            movement_bonus = min(100, total_movement_counter * 0.5)
+
+        # 5. Asteroid avoidance bonus (only when asteroids are present)
+        avoidance_bonus = 0
+        if ASTEROID_COUNT > 0 and alive_frame_counter > 100:
+            # Bonus for surviving longer with asteroids present
+            avoidance_bonus = (alive_frame_counter - 100) * 0.2
+
+        # 6. Backward movement penalty (reduced in early generations)
         backward_penalty = 0
-        if total_movement_counter > 0:
+        if total_movement_counter > 0 and generation > 30:
             backward_ratio = backward_movement_counter / total_movement_counter
-            # Penalize if more than 30% of movement is backward
-            if backward_ratio > 0.3:
-                # Scale penalty based on how much over 30% they are
-                excess_backward = backward_ratio - 0.3
-                backward_penalty = excess_backward * 300  # Adjust multiplier as needed
-        # 5. Spinning penalty
+            if backward_ratio > 0.4:  # More lenient threshold
+                excess_backward = backward_ratio - 0.4
+                backward_penalty = excess_backward * (100 if generation < 100 else 300)
+
+        # 7. Spinning penalty (only after movement is learned)
         spinning_penalty = 0
-        if alive_frame_counter > 100:  # Only start penalizing after some initial frames
-            # Calculate average angle change per frame
+        if alive_frame_counter > 100 and generation > 50:
             avg_angle_change_per_frame = total_angle_change / alive_frame_counter
-
-            # Penalize excessive turning
-            if avg_angle_change_per_frame > 0.02:  # Adjust threshold as needed
-                excess_spinning = avg_angle_change_per_frame - 0.02
-                spinning_penalty = excess_spinning * 5000  # Adjust multiplier as needed
-
-            # Alternative: Penalize high ratio of significant turns
-            if total_turn_counter > 0:
-                significant_turn_ratio = significant_turn_counter / total_turn_counter
-                if (
-                    significant_turn_ratio > 0.6
-                ):  # More than 60% of turns are significant
-                    excess_significant_turns = significant_turn_ratio - 0.6
-                    spinning_penalty += excess_significant_turns * 200
+            if avg_angle_change_per_frame > 0.03:  # More lenient threshold
+                excess_spinning = avg_angle_change_per_frame - 0.03
+                spinning_penalty = excess_spinning * 2000
 
         # Combine fitness components
         genome.fitness = (
-            survival_bonus  # Main objective
-            + fuel_gain_bonus  # Encourage smart fuel collection
-            + mineral_collection_bonus  # Encourage mining
-            - backward_penalty  # Penalize excessive backward movement
-            - spinning_penalty  # Penalize excessive spinning
+            survival_bonus
+            + fuel_gain_bonus
+            + mineral_collection_bonus
+            + movement_bonus  # New: encourage movement in early stages
+            + avoidance_bonus  # New: reward asteroid avoidance
+            - backward_penalty
+            - spinning_penalty
         ) * DIFFICULTY_MULTIPLIER
 
         # Visualization
@@ -393,7 +421,7 @@ def run_simulation(genome, config, visualizer=None):
             or alive_frame_counter >= max_timeout_frame
         ):
             if asteroid_collision:
-                genome.fitness -= 200
+                genome.fitness = max(0, genome.fitness - 200)
             break
 
 
@@ -551,7 +579,7 @@ def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool =
 
     # Run NEAT
     try:
-        population.run(eval_genomes, 1_000)
+        population.run(eval_genomes, 100_000)
 
         # Save final summary
         data_reporter.save_final_summary()

@@ -41,7 +41,7 @@ def run_with_trained_model():
                         config_file)
 
     # Load the trained model
-    genome = load_trained_model('output/neat/20250603-153718/best_genome_gen_153_fitness_15185.7.pkl')
+    genome = load_trained_model('output/neat/20250603-131019/best_genome_gen_46_fitness_21720.7.pkl')
     
     # Create the neural network
     net = neat.nn.FeedForwardNetwork.create(genome, config)
