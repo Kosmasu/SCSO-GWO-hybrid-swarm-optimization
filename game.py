@@ -38,7 +38,8 @@ class Spaceship(BaseModel):
             self.velocity_y = dy
             self.x = (self.x + dx) % WIDTH
             self.y = (self.y + dy) % HEIGHT
-            self.fuel -= 0.1  # fuel is float
+            if dx != 0 or dy != 0:
+                self.fuel -= 0.1  # fuel is float
         else:
             self.velocity_x = 0
             self.velocity_y = 0
@@ -49,7 +50,7 @@ class Spaceship(BaseModel):
             if dist < self.radius + mineral_obj.radius:
                 minerals.remove(mineral_obj)
                 self.minerals += 1
-                self.fuel = min(100.0, self.fuel + 10.0)
+                self.fuel = min(100.0, self.fuel + 15.0)
 
     def draw(self, screen) -> None:
         pygame.draw.circle(screen, BLUE, (int(self.x), int(self.y)), self.radius)

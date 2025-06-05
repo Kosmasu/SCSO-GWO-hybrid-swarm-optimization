@@ -85,34 +85,34 @@ def get_neat_inputs(
         "Inputs and explanations must match in length - Ship State"
     )
 
-    # N_RADAR_DIRECTIONS = 12
+    N_RADAR_DIRECTIONS = 12
     MAX_RADAR_RANGE = 200.0
-    # # Radar Scan Asteroids (12 inputs_value)
-    # radar_scan_results = radar_scan(
-    #     ship, asteroids, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
-    # )
+    # Radar Scan Asteroids (12 inputs_value)
+    radar_scan_results = radar_scan(
+        ship, asteroids, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
+    )
 
-    # # Normalize radar distances (0 = max range/no obstacle, 1 = touching/collision)
-    # normalized_radar = [
-    #     1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results
-    # ]
+    # Normalize radar distances (0 = max range/no obstacle, 1 = touching/collision)
+    normalized_radar = [
+        1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results
+    ]
 
-    # inputs_value.extend(normalized_radar)
+    inputs_value.extend(normalized_radar)
 
-    # # Generate explanations for each radar direction (relative to ship heading)
-    # for i in range(N_RADAR_DIRECTIONS):
-    #     angle_deg = i * (360 / N_RADAR_DIRECTIONS)
-    #     inputs_explanation.append(
-    #         f"Asteroid Radar {angle_deg:.0f}° relative (normalized inverse distance)"
-    #     )
+    # Generate explanations for each radar direction (relative to ship heading)
+    for i in range(N_RADAR_DIRECTIONS):
+        angle_deg = i * (360 / N_RADAR_DIRECTIONS)
+        inputs_explanation.append(
+            f"Asteroid Radar {angle_deg:.0f}° relative (normalized inverse distance)"
+        )
 
-    # assert len(inputs_value) == len(inputs_explanation), (
-    #     "Inputs and explanations must match in length - Asteroid Radar Scan"
-    # )
+    assert len(inputs_value) == len(inputs_explanation), (
+        "Inputs and explanations must match in length - Asteroid Radar Scan"
+    )
 
     # Top 1 Closest Asteroid (3 inputs_value)
     MAX_ASTEROID_SPEED_NORMAL = math.sqrt(ASTEROID_MAX_SPEED**2 + ASTEROID_MAX_SPEED**2)
-    closest_asteroids = get_closest_asteroid_info(ship, asteroids, top_n=5)
+    closest_asteroids = get_closest_asteroid_info(ship, asteroids, top_n=3)
     for index, _asteroid in enumerate(closest_asteroids):
         inputs_value.extend(
             [

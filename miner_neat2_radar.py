@@ -85,62 +85,62 @@ def get_neat_inputs(
         "Inputs and explanations must match in length - Ship State"
     )
 
-    # N_RADAR_DIRECTIONS = 12
+    N_RADAR_DIRECTIONS = 12
     MAX_RADAR_RANGE = 200.0
-    # # Radar Scan Asteroids (12 inputs_value)
-    # radar_scan_results = radar_scan(
-    #     ship, asteroids, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
-    # )
+    # Radar Scan Asteroids (12 inputs_value)
+    radar_scan_results = radar_scan(
+        ship, asteroids, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
+    )
 
-    # # Normalize radar distances (0 = max range/no obstacle, 1 = touching/collision)
-    # normalized_radar = [
-    #     1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results
-    # ]
+    # Normalize radar distances (0 = max range/no obstacle, 1 = touching/collision)
+    normalized_radar = [
+        1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results
+    ]
 
-    # inputs_value.extend(normalized_radar)
+    inputs_value.extend(normalized_radar)
 
-    # # Generate explanations for each radar direction (relative to ship heading)
-    # for i in range(N_RADAR_DIRECTIONS):
-    #     angle_deg = i * (360 / N_RADAR_DIRECTIONS)
-    #     inputs_explanation.append(
-    #         f"Asteroid Radar {angle_deg:.0f}° relative (normalized inverse distance)"
-    #     )
+    # Generate explanations for each radar direction (relative to ship heading)
+    for i in range(N_RADAR_DIRECTIONS):
+        angle_deg = i * (360 / N_RADAR_DIRECTIONS)
+        inputs_explanation.append(
+            f"Asteroid Radar {angle_deg:.0f}° relative (normalized inverse distance)"
+        )
 
-    # assert len(inputs_value) == len(inputs_explanation), (
-    #     "Inputs and explanations must match in length - Asteroid Radar Scan"
-    # )
+    assert len(inputs_value) == len(inputs_explanation), (
+        "Inputs and explanations must match in length - Asteroid Radar Scan"
+    )
 
     # Top 1 Closest Asteroid (3 inputs_value)
-    MAX_ASTEROID_SPEED_NORMAL = math.sqrt(ASTEROID_MAX_SPEED**2 + ASTEROID_MAX_SPEED**2)
-    closest_asteroids = get_closest_asteroid_info(ship, asteroids, top_n=5)
-    for index, _asteroid in enumerate(closest_asteroids):
-        inputs_value.extend(
-            [
-                max(
-                    0.0, 1.0 - (_asteroid.distance / MAX_RADAR_RANGE)
-                ),  # Normalize distance
-                math.sin(_asteroid.relative_angle),  # Y component of angle
-                math.cos(_asteroid.relative_angle),  # X component of angle
-                math.sin(
-                    _asteroid.velocity_angle
-                ),  # Y component of velocity direction
-                math.cos(
-                    _asteroid.velocity_angle
-                ),  # X component of velocity direction
-                _asteroid.velocity_magnitude
-                / MAX_ASTEROID_SPEED_NORMAL,  # Normalized velocity magnitude (assuming max ~5)
-            ]
-        )
-        inputs_explanation.extend(
-            [
-                f"Asteroid {index}: Distance (normalized)",
-                f"Asteroid {index}: Relative Angle Sin (normalized)",
-                f"Asteroid {index}: Relative Angle Cos (normalized)",
-                f"Asteroid {index}: Relative Velocity Direction Sin",
-                f"Asteroid {index}: Relative Velocity Direction Cos",
-                f"Asteroid {index}: Relative Velocity Magnitude",
-            ]
-        )
+    # MAX_ASTEROID_SPEED_NORMAL = math.sqrt(ASTEROID_MAX_SPEED**2 + ASTEROID_MAX_SPEED**2)
+    # closest_asteroids = get_closest_asteroid_info(ship, asteroids, top_n=5)
+    # for index, _asteroid in enumerate(closest_asteroids):
+    #     inputs_value.extend(
+    #         [
+    #             max(
+    #                 0.0, 1.0 - (_asteroid.distance / MAX_RADAR_RANGE)
+    #             ),  # Normalize distance
+    #             math.sin(_asteroid.relative_angle),  # Y component of angle
+    #             math.cos(_asteroid.relative_angle),  # X component of angle
+    #             math.sin(
+    #                 _asteroid.velocity_angle
+    #             ),  # Y component of velocity direction
+    #             math.cos(
+    #                 _asteroid.velocity_angle
+    #             ),  # X component of velocity direction
+    #             _asteroid.velocity_magnitude
+    #             / MAX_ASTEROID_SPEED_NORMAL,  # Normalized velocity magnitude (assuming max ~5)
+    #         ]
+    #     )
+    #     inputs_explanation.extend(
+    #         [
+    #             f"Asteroid {index}: Distance (normalized)",
+    #             f"Asteroid {index}: Relative Angle Sin (normalized)",
+    #             f"Asteroid {index}: Relative Angle Cos (normalized)",
+    #             f"Asteroid {index}: Relative Velocity Direction Sin",
+    #             f"Asteroid {index}: Relative Velocity Direction Cos",
+    #             f"Asteroid {index}: Relative Velocity Magnitude",
+    #         ]
+    #     )
 
     # Top 3 Closest Minerals (9 inputs_value)
     closest_minerals = get_closest_mineral_info(ship, minerals, top_n=3)

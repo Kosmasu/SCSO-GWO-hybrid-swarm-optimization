@@ -4,10 +4,14 @@ import neat
 import math
 import os
 #from miner import Spaceship, Mineral, Asteroid  # Import your game classes random
-from miner_harness import Spaceship, Mineral, Asteroid  # Import your game classes fixed locations
-# from miner_harness2 import Spaceship, Mineral, Asteroid
+# from miner_harness import Spaceship, Mineral, Asteroid  # Import your game classes fixed locations
+from miner_harness2 import Spaceship, Mineral, Asteroid
 # from miner_harness3 import Spaceship, Mineral, Asteroid 
-from miner_neat2 import get_neat_inputs 
+# from miner_neat2 import get_neat_inputs 
+from miner_neat2_both import get_neat_inputs 
+# from miner_neat2_radar import get_neat_inputs 
+# from miner_neat2_asteroid import get_neat_inputs 
+# from miner_neat2_asteroid import get_neat_inputs 
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -41,7 +45,7 @@ def run_with_trained_model():
                         config_file)
 
     # Load the trained model
-    genome = load_trained_model('output/neat/20250603-131019/best_genome_gen_46_fitness_21720.7.pkl')
+    genome = load_trained_model('output/neat/20250604-211551/best_genome_gen_278_fitness_14570.4.pkl')
     
     # Create the neural network
     net = neat.nn.FeedForwardNetwork.create(genome, config)
