@@ -1,9 +1,7 @@
 import pickle
 import pygame
 import neat
-import math
 import os
-from miner_harness2 import Spaceship, Mineral, Asteroid
 from miner_neat2 import get_neat_inputs 
 from game_simulation import SimulationConfig, run_neat_simulation
 
@@ -56,7 +54,7 @@ def run_with_trained_model():
                         config_file)
 
     # Load the trained model
-    genome = load_trained_model('output/neat/20250606-201452/best_genome_gen_196_fitness_1144.2.pkl')
+    genome = load_trained_model('output/neat/20250606-235226/best_genome_gen_98_fitness_1102.1.pkl')
     
     # Create the neural network
     net = neat.nn.FeedForwardNetwork.create(genome, config)

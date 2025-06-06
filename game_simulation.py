@@ -27,7 +27,6 @@ class SimulationResult:
         self.minerals_collected: int = 0
         self.final_fitness: float = 0.0
         self.backward_movement_ratio: float = 0.0
-        self.spinning_penalty: float = 0.0
 
 
 def handle_steering(output: List[float]) -> float:
@@ -133,17 +132,17 @@ def calculate_fitness(
     ship: Spaceship,
     alive_frames: int,
     total_fuel_gain: float,
-    backward_penalty: float,
-    spinning_penalty: float,
+    # backward_penalty: float,
+    # spinning_penalty: float,
 ) -> float:
     """Calculate fitness score"""
     return (
         (alive_frames / 4)
         + total_fuel_gain
-        + ship.minerals * 60
+        + ship.minerals * 40
         + ship.fuel * 0.5
-        - backward_penalty
-        - spinning_penalty
+        # - backward_penalty
+        # - spinning_penalty
     )
 
 
@@ -224,24 +223,24 @@ def run_neat_simulation(
         total_fuel_gain += fuel_gain
 
         # Calculate penalties
-        backward_penalty = 0
-        if total_movement_counter > 50:
-            backward_ratio = backward_movement_counter / total_movement_counter
-            if backward_ratio > 0.5:
-                backward_penalty = (backward_ratio - 0.5) * 200
+        # backward_penalty = 0
+        # if total_movement_counter > 50:
+        #     backward_ratio = backward_movement_counter / total_movement_counter
+        #     if backward_ratio > 0.5:
+        #         backward_penalty = (backward_ratio - 0.5) * 200
 
-        spinning_penalty = 0
-        if alive_frame_counter > 100:
-            avg_angle_change_per_frame = total_angle_change / alive_frame_counter
-            if avg_angle_change_per_frame > 0.10:
-                spinning_penalty = (avg_angle_change_per_frame - 0.05) * 1000
+        # spinning_penalty = 0
+        # if alive_frame_counter > 100:
+        #     avg_angle_change_per_frame = total_angle_change / alive_frame_counter
+        #     if avg_angle_change_per_frame > 0.10:
+        #         spinning_penalty = (avg_angle_change_per_frame - 0.05) * 1000
 
         current_fitness = calculate_fitness(
             ship,
             alive_frame_counter,
             total_fuel_gain,
-            backward_penalty,
-            spinning_penalty,
+            # backward_penalty,
+            # spinning_penalty,
         )
         # Visualization
         if visualizer and screen and clock:
@@ -271,7 +270,6 @@ def run_neat_simulation(
                 if total_movement_counter > 0
                 else 0
             )
-            result.spinning_penalty = spinning_penalty
 
             result.final_fitness = current_fitness
             if death_reason == "asteroid_collision":
