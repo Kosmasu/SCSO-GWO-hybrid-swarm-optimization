@@ -26,9 +26,18 @@ class DataReporter(BaseReporter):
         self.best_fitness_history = []
         self.species_history = []
         
+        # Death reason tracking
+        self.cumulative_death_stats = {
+            "asteroid_collision": 0,
+            "out_of_fuel": 0,
+            "timeout": 0,
+            "unknown": 0
+        }
+        
         # CSV files for easy analysis
         self.fitness_csv = os.path.join(self.data_dir, "fitness_history.csv")
         self.species_csv = os.path.join(self.data_dir, "species_history.csv")
+        self.death_stats_csv = os.path.join(self.data_dir, "death_statistics.csv")
         
         # Handle checkpoint continuation
         if continue_from_checkpoint:
@@ -56,6 +65,7 @@ class DataReporter(BaseReporter):
                 
                 self.generation_data = checkpoint_data.get('generations', [])
                 self.best_fitness_history = checkpoint_data.get('best_fitness_history', [])
+                self.cumulative_death_stats = checkpoint_data.get('cumulative_death_stats', self.cumulative_death_stats)
                 
                 # Restore original start time
                 start_time_str = checkpoint_data.get('run_info', {}).get('start_time')
@@ -95,6 +105,14 @@ class DataReporter(BaseReporter):
                 'generation', 'species_id', 'size', 'fitness', 
                 'adjusted_fitness', 'age', 'stagnation'
             ])
+        
+        # Death statistics CSV
+        with open(self.death_stats_csv, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                'generation', 'asteroid_collision', 'out_of_fuel', 'timeout', 'unknown',
+                'collision_pct', 'fuel_pct', 'timeout_pct', 'unknown_pct', 'total_genomes'
+            ])
     
     def start_generation(self, generation):
         """Called at the start of each generation."""
@@ -109,6 +127,24 @@ class DataReporter(BaseReporter):
         # Skip if we already have data for this generation (checkpoint continuation)
         if any(gen_data['generation'] == self.current_generation for gen_data in self.generation_data):
             return
+        
+        # Get death reasons from config
+        death_reasons = getattr(config, 'last_generation_death_reasons', [])
+        generation_death_stats = {
+            "asteroid_collision": 0,
+            "out_of_fuel": 0,
+            "timeout": 0,
+            "unknown": 0
+        }
+        
+        # Count death reasons for this generation
+        for reason in death_reasons:
+            if reason in generation_death_stats:
+                generation_death_stats[reason] += 1
+                self.cumulative_death_stats[reason] += 1
+            else:
+                generation_death_stats["unknown"] += 1
+                self.cumulative_death_stats["unknown"] += 1
             
         generation_end_time = datetime.now()
         duration = (generation_end_time - self.generation_start_time).total_seconds()
@@ -139,7 +175,8 @@ class DataReporter(BaseReporter):
                 'fitness': best_genome.fitness,
                 'nodes': len(best_genome.nodes),
                 'connections': len(best_genome.connections)
-            }
+            },
+            'death_stats': generation_death_stats.copy()
         }
         
         self.generation_data.append(gen_data)
@@ -152,6 +189,31 @@ class DataReporter(BaseReporter):
                 self.current_generation, generation_end_time.isoformat(), round(duration, 2),
                 best_genome.fitness, round(fit_mean, 2), round(fit_std, 2),
                 fit_min, fit_max, len(population), len(species_set.species)
+            ])
+        
+        # Write death statistics to CSV
+        total_genomes = sum(generation_death_stats.values())
+        if total_genomes > 0:
+            collision_pct = (generation_death_stats['asteroid_collision'] / total_genomes) * 100
+            fuel_pct = (generation_death_stats['out_of_fuel'] / total_genomes) * 100
+            timeout_pct = (generation_death_stats['timeout'] / total_genomes) * 100
+            unknown_pct = (generation_death_stats['unknown'] / total_genomes) * 100
+        else:
+            collision_pct = fuel_pct = timeout_pct = unknown_pct = 0
+            
+        with open(self.death_stats_csv, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                self.current_generation,
+                generation_death_stats['asteroid_collision'],
+                generation_death_stats['out_of_fuel'],
+                generation_death_stats['timeout'],
+                generation_death_stats['unknown'],
+                round(collision_pct, 1),
+                round(fuel_pct, 1),
+                round(timeout_pct, 1),
+                round(unknown_pct, 1),
+                total_genomes
             ])
         
         # Write species data to CSV (append mode for checkpoints)
@@ -169,11 +231,12 @@ class DataReporter(BaseReporter):
         if self.current_generation % 10 == 0:
             self._save_checkpoint()
         
-        # Print progress
+        # Print progress with death stats
         print(f"Gen {self.current_generation:3d} | "
               f"Best: {best_genome.fitness:7.1f} | "
               f"Mean: {fit_mean:7.1f} | "
               f"Species: {len(species_set.species):2d} | "
+              f"Deaths: C:{collision_pct:.2f}% F:{fuel_pct:.2f}% T:{timeout_pct:.2f}% | "
               f"Time: {duration:5.1f}s")
     
     def _save_checkpoint(self):
@@ -186,7 +249,8 @@ class DataReporter(BaseReporter):
                 'continue_from_checkpoint': self.continue_from_checkpoint
             },
             'generations': self.generation_data,
-            'best_fitness_history': self.best_fitness_history
+            'best_fitness_history': self.best_fitness_history,
+            'cumulative_death_stats': self.cumulative_death_stats
         }
         
         checkpoint_file = os.path.join(self.data_dir, "training_checkpoint.json")
@@ -227,6 +291,14 @@ class DataReporter(BaseReporter):
         """Save final training summary."""
         end_time = datetime.now()
         total_duration = (end_time - self.run_start_time).total_seconds()
+        
+        total_deaths = sum(self.cumulative_death_stats.values())
+        death_percentages = {}
+        if total_deaths > 0:
+            death_percentages = {
+                reason: (count / total_deaths) * 100 
+                for reason, count in self.cumulative_death_stats.items()
+            }
 
         summary = {
             "run_info": {
@@ -250,9 +322,15 @@ class DataReporter(BaseReporter):
                 if self.best_fitness_history
                 else 0,
             },
+            "death_analysis": {
+                "total_genomes_evaluated": total_deaths,
+                "death_counts": self.cumulative_death_stats,
+                "death_percentages": death_percentages
+            },
             "files_created": {
                 "fitness_history": "data/fitness_history.csv",
                 "species_history": "data/species_history.csv",
+                "death_statistics": "data/death_statistics.csv",
                 "training_checkpoint": "data/training_checkpoint.json",
                 "final_summary": "data/final_summary.json",
             },
@@ -272,4 +350,7 @@ class DataReporter(BaseReporter):
             f"   Duration: {total_duration / 3600:.1f} hours ({len(self.generation_data)} generations)"
         )
         print(f"   Best fitness: {max(self.best_fitness_history):.1f}")
+        print(f"   Death Analysis: Collision {death_percentages.get('asteroid_collision', 0):.1f}% | "
+              f"Fuel {death_percentages.get('out_of_fuel', 0):.1f}% | "
+              f"Timeout {death_percentages.get('timeout', 0):.1f}%")
         print(f"   Data saved to: {self.data_dir}")

@@ -50,7 +50,7 @@ class Spaceship(BaseModel):
             if dist < self.radius + mineral_obj.radius:
                 minerals.remove(mineral_obj)
                 self.minerals += 1
-                self.fuel = min(100.0, self.fuel + 15.0)
+                self.fuel = min(100.0, self.fuel + 10.0)
 
     def draw(self, screen) -> None:
         pygame.draw.circle(screen, BLUE, (int(self.x), int(self.y)), self.radius)

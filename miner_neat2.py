@@ -16,37 +16,13 @@ from game import (
     get_closest_mineral_info,
     radar_scan,
 )
+from game_simulation import (
+    SimulationConfig,
+    run_neat_simulation,
+)
 
 if not pygame.get_init():
     pygame.init()
-
-
-def handle_steering(output: list[float]):
-    """
-    Handle steering based on the output from the neural network.
-    The output is expected to be in the range [-1, 1] for turning left and right.
-    """
-    turn_output = output[0]
-    if turn_output < -0.3:
-        return ((turn_output + 0.3) / 0.7) * 0.15  # Full left
-    elif turn_output >= -0.3 and turn_output <= 0.3:
-        return 0  # No turn
-    else:
-        return ((turn_output - 0.3) / 0.7) * 0.15  # Full right
-
-
-def handle_thrusting(output: list[float]):
-    """
-    Handle thrusting based on the output from the neural network.
-    The output is expected to be in the range [-1, 1] for backward and forward thrust.
-    """
-    thrust_output = output[1]
-    if thrust_output < -0.3:
-        return ((thrust_output + 0.3) / 0.7) * 0.8  # Full backward
-    elif thrust_output >= -0.3 and thrust_output <= 0.3:
-        return 0  # No thrust
-    else:
-        return (thrust_output - 0.3) / 0.7  # Full forward
 
 
 def get_neat_inputs(
@@ -85,62 +61,30 @@ def get_neat_inputs(
         "Inputs and explanations must match in length - Ship State"
     )
 
-    # N_RADAR_DIRECTIONS = 12
+    N_RADAR_DIRECTIONS = 12
     MAX_RADAR_RANGE = 200.0
-    # # Radar Scan Asteroids (12 inputs_value)
-    # radar_scan_results = radar_scan(
-    #     ship, asteroids, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
-    # )
+    # Radar Scan Asteroids (12 inputs_value)
+    radar_scan_results = radar_scan(
+        ship, asteroids, n_directions=N_RADAR_DIRECTIONS, max_range=MAX_RADAR_RANGE
+    )
 
-    # # Normalize radar distances (0 = max range/no obstacle, 1 = touching/collision)
-    # normalized_radar = [
-    #     1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results
-    # ]
+    # Normalize radar distances (0 = max range/no obstacle, 1 = touching/collision)
+    normalized_radar = [
+        1.0 - (result.distance / MAX_RADAR_RANGE) for result in radar_scan_results
+    ]
 
-    # inputs_value.extend(normalized_radar)
+    inputs_value.extend(normalized_radar)
 
-    # # Generate explanations for each radar direction (relative to ship heading)
-    # for i in range(N_RADAR_DIRECTIONS):
-    #     angle_deg = i * (360 / N_RADAR_DIRECTIONS)
-    #     inputs_explanation.append(
-    #         f"Asteroid Radar {angle_deg:.0f}° relative (normalized inverse distance)"
-    #     )
-
-    # assert len(inputs_value) == len(inputs_explanation), (
-    #     "Inputs and explanations must match in length - Asteroid Radar Scan"
-    # )
-
-    # Top 1 Closest Asteroid (3 inputs_value)
-    MAX_ASTEROID_SPEED_NORMAL = math.sqrt(ASTEROID_MAX_SPEED**2 + ASTEROID_MAX_SPEED**2)
-    closest_asteroids = get_closest_asteroid_info(ship, asteroids, top_n=5)
-    for index, _asteroid in enumerate(closest_asteroids):
-        inputs_value.extend(
-            [
-                max(
-                    0.0, 1.0 - (_asteroid.distance / MAX_RADAR_RANGE)
-                ),  # Normalize distance
-                math.sin(_asteroid.relative_angle),  # Y component of angle
-                math.cos(_asteroid.relative_angle),  # X component of angle
-                math.sin(
-                    _asteroid.velocity_angle
-                ),  # Y component of velocity direction
-                math.cos(
-                    _asteroid.velocity_angle
-                ),  # X component of velocity direction
-                _asteroid.velocity_magnitude
-                / MAX_ASTEROID_SPEED_NORMAL,  # Normalized velocity magnitude (assuming max ~5)
-            ]
+    # Generate explanations for each radar direction (relative to ship heading)
+    for i in range(N_RADAR_DIRECTIONS):
+        angle_deg = i * (360 / N_RADAR_DIRECTIONS)
+        inputs_explanation.append(
+            f"Asteroid Radar {angle_deg:.0f}° relative (normalized inverse distance)"
         )
-        inputs_explanation.extend(
-            [
-                f"Asteroid {index}: Distance (normalized)",
-                f"Asteroid {index}: Relative Angle Sin (normalized)",
-                f"Asteroid {index}: Relative Angle Cos (normalized)",
-                f"Asteroid {index}: Relative Velocity Direction Sin",
-                f"Asteroid {index}: Relative Velocity Direction Cos",
-                f"Asteroid {index}: Relative Velocity Magnitude",
-            ]
-        )
+
+    assert len(inputs_value) == len(inputs_explanation), (
+        "Inputs and explanations must match in length - Asteroid Radar Scan"
+    )
 
     # Top 3 Closest Minerals (9 inputs_value)
     closest_minerals = get_closest_mineral_info(ship, minerals, top_n=3)
@@ -178,192 +122,28 @@ def get_neat_inputs(
 
 
 def run_simulation(genome, config, visualizer=None):
+    """Run simulation using the modular game simulation"""
     net = neat.nn.FeedForwardNetwork.create(genome, config)
-    ship = Spaceship()
 
-    minerals: list[Mineral] = []
-    asteroids: list[Asteroid] = []
+    # Create simulation config
+    sim_config = SimulationConfig()
+    sim_config.num_minerals = 5
+    sim_config.num_asteroids = 10
 
-    # Generate initial asteroids
-    generation = config.visualizer.generation if visualizer else 0
+    # Run the simulation
+    result = run_neat_simulation(
+        network=net,
+        get_inputs_func=get_neat_inputs,
+        config=sim_config,
+        visualizer=visualizer,
+        screen=screen if visualizer else None,
+        clock=clock if visualizer else None,
+    )
 
-    # Initialize minerals
-    for _ in range(5):
-        minerals.append(Mineral())
+    # Set genome fitness
+    genome.fitness = result.final_fitness
 
-    # Initialize asteroids
-    for _ in range(8):
-        asteroid = Asteroid()
-        # Ensure asteroids are not too close to the ship. At least 100 pixels away
-        while (
-            math.hypot(ship.x - asteroid.x, ship.y - asteroid.y)
-            < ship.radius + asteroid.radius + 100
-        ):
-            asteroid = Asteroid()
-        asteroids.append(asteroid)
-
-    alive_frame_counter = 0
-    dx, dy = 0, 0
-    total_fuel_gain = 0
-    backward_movement_counter = 0
-    total_movement_counter = 0
-
-    # Add spinning tracking variables
-    total_angle_change = 0
-    previous_angle = ship.angle
-
-    if visualizer:
-        visualizer.start_time = time.time()
-
-    while True:
-        alive_frame_counter += 1
-
-        # Handle events
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                return
-
-        _, inputs_value = get_neat_inputs(ship, minerals, asteroids)
-
-        # Get actions from network
-        output = net.activate(inputs_value)
-
-        # Track angle changes for spinning penalty
-        old_angle = ship.angle
-        ship.angle += handle_steering(output)
-        ship.angle = ship.angle % (2 * math.pi)
-        
-        # Calculate angle change (handle wrapping around 2π)
-        angle_diff = abs(ship.angle - old_angle)
-        if angle_diff > math.pi:
-            angle_diff = 2 * math.pi - angle_diff
-        total_angle_change += angle_diff
-
-        thrust_power = handle_thrusting(output)
-
-        # Track backward movement
-        if abs(thrust_power) > 0.1:  # Only count significant movement
-            total_movement_counter += 1
-            if thrust_power < -0.1:  # Backward movement
-                backward_movement_counter += 1
-
-        dx = thrust_power * ship.speed * math.cos(ship.angle)
-        dy = thrust_power * ship.speed * math.sin(ship.angle)
-        ship.move(dx, dy)
-
-        fuel_before = ship.fuel
-        ship.mine(minerals)
-        if len(minerals) < 5:
-            minerals.append(Mineral())
-        fuel_gain = ship.fuel - fuel_before
-
-        # Accumulate positive fuel gains only
-        if fuel_gain > 0:
-            total_fuel_gain += fuel_gain
-
-        # Move asteroids
-        for asteroid in asteroids:
-            asteroid.move()
-
-        # Choose fitness function based on competition mode
-        USE_COMPETITION_FITNESS = True  # Set to False for more sophisticated training
-        
-        if USE_COMPETITION_FITNESS:
-            # Simple competition fitness: alive_frame / 4 + ship.minerals * 100
-            base_fitness = alive_frame_counter / 4 + ship.minerals * 100
-            
-            # Still apply penalties for bad behavior
-            backward_penalty = 0
-            if total_movement_counter > 50:  # Only after some movement
-                backward_ratio = backward_movement_counter / total_movement_counter
-                if backward_ratio > 0.5:  # More than 50% backward movement
-                    backward_penalty = (backward_ratio - 0.5) * 200
-            
-            spinning_penalty = 0
-            if alive_frame_counter > 100:
-                avg_angle_change_per_frame = total_angle_change / alive_frame_counter
-                if avg_angle_change_per_frame > 0.05:  # Excessive spinning
-                    spinning_penalty = (avg_angle_change_per_frame - 0.05) * 1000
-            
-            genome.fitness = base_fitness - backward_penalty - spinning_penalty
-            
-        else:
-            # More sophisticated training fitness
-            survival_bonus = alive_frame_counter / 4
-            fuel_gain_bonus = total_fuel_gain * 2
-            mineral_collection_bonus = ship.minerals * 200
-            
-            # Movement encouragement for early learning
-            movement_bonus = 0
-            if total_movement_counter > 0:
-                movement_bonus = min(100, total_movement_counter * 0.5)
-
-            # Stronger backward movement penalty
-            backward_penalty = 0
-            if total_movement_counter > 20:
-                backward_ratio = backward_movement_counter / total_movement_counter
-                if backward_ratio > 0.3:
-                    excess_backward = backward_ratio - 0.3
-                    backward_penalty = excess_backward * 500
-
-            # Improved spinning penalty
-            spinning_penalty = 0
-            if alive_frame_counter > 50:
-                avg_angle_change_per_frame = total_angle_change / alive_frame_counter
-                if avg_angle_change_per_frame > 0.02:
-                    excess_spinning = avg_angle_change_per_frame - 0.02
-                    spinning_penalty = excess_spinning * 3000
-
-            genome.fitness = (
-                survival_bonus
-                + fuel_gain_bonus
-                + mineral_collection_bonus
-                + movement_bonus
-                - backward_penalty
-                - spinning_penalty
-            )
-
-        # Visualization
-        if visualizer:
-            screen.fill(BLACK)
-            for mineral in minerals:
-                mineral.draw(screen)
-
-            for asteroid in asteroids:
-                asteroid.draw(screen)
-
-            ship.draw(screen)
-
-            visualizer.draw_stats(screen, genome.fitness, ship.minerals, ship.fuel)
-            pygame.display.flip()
-            clock.tick(60)
-
-        if asteroids:
-            _asteroid = min(
-                (a for a in asteroids),
-                key=lambda a: math.hypot(ship.x - a.x, ship.y - a.y),
-            )
-            # Termination conditions
-            asteroid_collision = (
-                math.hypot(ship.x - _asteroid.x, ship.y - _asteroid.y)
-                < ship.radius + _asteroid.radius
-            )
-        else:
-            asteroid_collision = False
-        out_of_fuel = ship.fuel <= 0
-
-        # Simplified timeout - just use a reasonable fixed timeout
-        max_timeout_frame = 30_000  # About 8 minutes at 60 FPS
-
-        if (
-            asteroid_collision
-            or out_of_fuel
-            or alive_frame_counter >= max_timeout_frame
-        ):
-            if asteroid_collision:
-                genome.fitness = max(0, genome.fitness - 500)  # Stronger collision penalty
-            break
+    return result.death_reason
 
 
 FONT = pygame.font.SysFont(None, 36)
@@ -374,13 +154,48 @@ class TrainingVisualizer:
         self.best_fitness = -float("inf")
         self.generation = 0
         self.start_time = time.time()
+        # Add death statistics tracking
+        self.death_stats = {
+            "asteroid_collision": 0,
+            "out_of_fuel": 0,
+            "timeout": 0,
+            "unknown": 0,
+        }
+        self.total_genomes_evaluated = 0
+
+    def update_death_stats(self, death_reasons):
+        """Update death statistics with results from a generation."""
+        self.total_genomes_evaluated += len(death_reasons)
+        for reason in death_reasons:
+            if reason in self.death_stats:
+                self.death_stats[reason] += 1
+            else:
+                self.death_stats["unknown"] += 1
+
+    def get_death_percentages(self):
+        """Get death reason percentages."""
+        if self.total_genomes_evaluated == 0:
+            return {reason: 0.0 for reason in self.death_stats}
+
+        return {
+            reason: (count / self.total_genomes_evaluated) * 100
+            for reason, count in self.death_stats.items()
+        }
 
     def update_generation(self, best_genome):
         self.generation += 1
         if best_genome.fitness > self.best_fitness:
             self.best_fitness = best_genome.fitness
             print(f"🔥 New best fitness: {self.best_fitness:.1f}")
+
+        # Print death statistics
+        death_percentages = self.get_death_percentages()
         print(f"Generation {self.generation} best: {best_genome.fitness:.1f}")
+        print(
+            f"💀 Death stats: Collision: {death_percentages['asteroid_collision']:.2f}% | "
+            f"Fuel: {death_percentages['out_of_fuel']:.2f}% | "
+            f"Timeout: {death_percentages['timeout']:.2f}%"
+        )
 
     def draw_stats(self, screen, fitness, minerals, fuel):
         stats = [
@@ -403,17 +218,25 @@ def eval_genomes(genomes, config):
     # First evaluate all genomes to find the best
     best_in_generation = None
     best_fitness = -float("inf")
+    death_reasons = []
 
     for genome_id, genome in genomes:
         genome.fitness = 0  # Initialize fitness
-        run_simulation(
+        death_reason = run_simulation(
             genome, config, visualizer=None
         )  # No visualization during evaluation
+        death_reasons.append(death_reason)
 
         # Track the best in this generation
         if genome.fitness > best_fitness:
             best_fitness = genome.fitness
             best_in_generation = genome
+
+    # Update death statistics
+    visualizer.update_death_stats(death_reasons)
+
+    # Pass death reasons to config for reporter
+    config.last_generation_death_reasons = death_reasons
 
     # Manual best genome tracking to avoid NEAT bug
     if not hasattr(config, "manual_best_genome"):

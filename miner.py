@@ -11,6 +11,7 @@ from game import (
 )
 from data import BLACK, GREEN, RED, WHITE, WIDTH, HEIGHT
 from miner_neat2 import get_neat_inputs
+from game_simulation import SimulationConfig, initialize_game_objects
 
 # Create larger window for debug panel
 if not pygame.get_init():
@@ -237,18 +238,25 @@ def handle_debug_scroll(event):
 
 # Game Setup
 def main():
-    ship = Spaceship(fuel=999999999)
-    minerals = [Mineral() for _ in range(5)]
-    asteroids = [Asteroid() for _ in range(1)]
-    asteroids[0].speed_x, asteroids[0].speed_y = (
-        2.0,
-        2.0,
-    )
+    # Use modular initialization
+    sim_config = SimulationConfig()
+    sim_config.num_minerals = 5
+    sim_config.num_asteroids = 1
+
+    ship, minerals, asteroids = initialize_game_objects(sim_config)
+
+    # Override ship fuel for manual play
+    ship.fuel = 999999999
+
+    # Customize first asteroid for testing
+    asteroids[0].speed_x, asteroids[0].speed_y = 2.0, 2.0
     asteroids[0].x, asteroids[0].y = 0, HEIGHT - 1
+
     running = True
     debug_mode = False
     alive_time = 0
     dx, dy = 0, 0
+
     while running:
         alive_time += 1
         debug_screen.fill(BLACK)
@@ -396,88 +404,6 @@ def main():
                 (int(ship_end_x), int(ship_end_y)),
                 3,
             )
-
-            # # Draw lines to minerals with relative angles
-            # mineral_info = get_closest_mineral_info(ship, minerals, top_n=3)
-            # for i, info in enumerate(mineral_info):
-            #     # Use the actual mineral position for direct line (wrapped if needed)
-            #     mineral = info.mineral
-
-            #     # Calculate wrapped distance for visualization
-            #     dx = mineral.x - ship.x
-            #     dy = mineral.y - ship.y
-
-            #     # Handle screen wrapping for visualization
-            #     if dx > WIDTH / 2:
-            #         dx -= WIDTH
-            #     elif dx < -WIDTH / 2:
-            #         dx += WIDTH
-
-            #     if dy > HEIGHT / 2:
-            #         dy -= HEIGHT
-            #     elif dy < -HEIGHT / 2:
-            #         dy += HEIGHT
-
-            #     # Calculate the wrapped angle for visualization
-            #     wrapped_angle = math.atan2(dy, dx)
-
-            #     # Draw line showing the relative angle (what the AI sees)
-            #     rel_end_x = ship.x + 80 * math.cos(ship.angle + info.relative_angle)
-            #     rel_end_y = ship.y + 80 * math.sin(ship.angle + info.relative_angle)
-            #     pygame.draw.line(
-            #         debug_screen,
-            #         RED,
-            #         (int(ship.x), int(ship.y)),
-            #         (int(rel_end_x), int(rel_end_y)),
-            #         2,
-            #     )
-
-            #     # Draw line using wrapped angle (should match the relative angle line)
-            #     wrapped_end_x = ship.x + 80 * math.cos(wrapped_angle)
-            #     wrapped_end_y = ship.y + 80 * math.sin(wrapped_angle)
-            #     pygame.draw.line(
-            #         debug_screen,
-            #         GREEN,
-            #         (int(ship.x), int(ship.y)),
-            #         (int(wrapped_end_x), int(wrapped_end_y)),
-            #         1,
-            #     )
-
-            # # Draw lines to asteroids with relative angles
-            # asteroid_info = get_closest_asteroid_info(ship, asteroids, top_n=5)
-            # for i, info in enumerate(asteroid_info):
-            #     # info.angle is already the relative angle from get_closest_asteroid_info
-            #     # So we need to add it to ship.angle to get the absolute direction
-
-            #     # Draw line showing the relative angle (what the AI sees)
-            #     rel_end_x = ship.x + 80 * math.cos(ship.angle + info.relative_angle)
-            #     rel_end_y = ship.y + 80 * math.sin(ship.angle + info.relative_angle)
-            #     pygame.draw.line(
-            #         debug_screen,
-            #         RED,
-            #         (int(ship.x), int(ship.y)),
-            #         (int(rel_end_x), int(rel_end_y)),
-            #         2,
-            #     )
-
-            #     # Draw line directly to the asteroid (absolute direction for reference)
-            #     asteroid = info.asteroid
-            #     pygame.draw.line(
-            #         debug_screen,
-            #         WHITE,
-            #         (int(ship.x), int(ship.y)),
-            #         (int(asteroid.x), int(asteroid.y)),
-            #         1,
-            #     )
-
-            #     # Add text labels
-            #     font_small = pygame.font.SysFont(None, 20)
-            #     rel_text = font_small.render(
-            #         f"Rel: {math.degrees(info.relative_angle):.1f}°",
-            #         True,
-            #         (255, 255, 255),
-            #     )
-            #     debug_screen.blit(rel_text, (int(rel_end_x + 5), int(rel_end_y)))
 
             # Draw comprehensive debug panel
             draw_debug_panel(debug_screen, ship, minerals, asteroids)
