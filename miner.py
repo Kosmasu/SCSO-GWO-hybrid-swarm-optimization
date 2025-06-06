@@ -9,7 +9,7 @@ from game import (
     get_closest_mineral_info,
     radar_scan,
 )
-from data import BLACK, GREEN, RED, WHITE, WIDTH, HEIGHT
+from data import BLACK, BLUE, GREEN, RED, WHITE, WIDTH, HEIGHT, YELLOW
 from miner_neat2 import get_neat_inputs
 from game_simulation import SimulationConfig, initialize_game_objects
 
@@ -65,123 +65,18 @@ def draw_debug_panel(
     draw_text("=== NEAT INPUTS DEBUG ===", font_medium, WHITE, True)
     draw_text("Scroll: Mouse Wheel / Page Up/Down", font_small, (200, 200, 200))
     y_offset += 5
-
     input_idx = 0
-
-    # Ship State (3 inputs)
-    draw_text("SHIP STATE:", font_medium, (100, 100, 255), True)
-    draw_text(
-        f"  Actual values - Angle: {ship.angle:.2f}",
-        font_small,
-        (150, 150, 255),
-    )
-    for i in range(3):
+    for value, explanation in zip(inputs_value, inputs_explanation):
+        color = WHITE
+        if "asteroid" in explanation.lower():
+            color = RED
+        elif "mineral" in explanation.lower():
+            color = YELLOW
+        elif "ship" in explanation.lower():
+            color = BLUE
         if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
-            explanation = inputs_explanation[input_idx]
-            value = inputs_value[input_idx]
-            draw_text(f"  {explanation}: {value:.3f}", font_small)
+            draw_text(f"{explanation}: {value:.3f}", font_small, color)
         input_idx += 1
-    y_offset += 5
-
-    # Asteroid Radar Scan (12 inputs)
-    draw_text("ASTEROID RADAR SCAN:", font_medium, (255, 255, 100), True)
-    draw_text(
-        f"  12 directions, 200px max range",
-        font_small,
-        (255, 255, 150),
-    )
-    for i in range(12):
-        if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
-            explanation = inputs_explanation[input_idx]
-            value = inputs_value[input_idx]
-            # Color code radar values: red for close obstacles, green for clear
-            color = WHITE
-            if value > 0.8:  # Very close obstacle
-                color = (255, 100, 100)  # Light red
-            elif value > 0.5:  # Medium distance obstacle
-                color = (255, 255, 100)  # Yellow
-            elif value > 0.2:  # Far obstacle
-                color = (100, 255, 100)  # Light green
-            else:  # Clear path
-                color = (100, 255, 100)  # Light green
-
-            draw_text(f"  {explanation}: {value:.3f}", font_small, color)
-        input_idx += 1
-    y_offset += 5
-
-    # Top 1 Closest Asteroid (3 inputs) - NEW SECTION
-    draw_text("CLOSEST ASTEROID:", font_medium, (255, 100, 100), True)
-    closest_asteroids = get_closest_asteroid_info(ship, asteroids, top_n=1)
-    for i, asteroid in enumerate(closest_asteroids):
-        draw_text(
-            f"  Asteroid {i + 1}:",
-            font_small,
-            (255, 150, 150),
-        )
-
-    for i in range(6):
-        if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
-            explanation = inputs_explanation[input_idx]
-            value = inputs_value[input_idx]
-
-            # Color code based on input type and value
-            color = WHITE
-            if "Distance" in explanation:
-                # Color code distance: red for close, green for far
-                if value > 0.8:  # Very close asteroid
-                    color = (255, 100, 100)  # Light red
-                elif value > 0.5:  # Medium distance
-                    color = (255, 255, 100)  # Yellow
-                else:  # Far asteroid
-                    color = (100, 255, 100)  # Light green
-            else:  # Angle components (sin/cos)
-                color = (255, 200, 200)  # Light red for angles
-
-            draw_text(f"  {explanation}: {value:.3f}", font_small, color)
-        input_idx += 1
-    y_offset += 5
-
-    # Top 3 Closest Minerals (9 inputs)
-    draw_text("TOP 3 CLOSEST MINERALS:", font_medium, (100, 255, 100), True)
-    closest_minerals = get_closest_mineral_info(ship, minerals, top_n=3)
-    draw_text(
-        f"  Found {len(closest_minerals)} minerals",
-        font_small,
-        (150, 255, 150),
-    )
-
-    for mineral_idx in range(3):  # Always show 3 mineral slots
-        draw_text(f"  Mineral {mineral_idx + 1}:", font_small, (150, 255, 150))
-
-        # Each mineral has 3 inputs: distance, sin(angle), cos(angle)
-        for i in range(3):
-            if input_idx < len(inputs_explanation) and input_idx < len(inputs_value):
-                explanation = inputs_explanation[input_idx]
-                value = inputs_value[input_idx]
-
-                # Color code based on input type and value
-                color = WHITE
-                if "Distance" in explanation:
-                    # Color code distance: green for close, red for far
-                    if value > 0.7:  # Close mineral
-                        color = (100, 255, 100)  # Light green
-                    elif value > 0.3:  # Medium distance
-                        color = (255, 255, 100)  # Yellow
-                    else:  # Far mineral or padded
-                        color = (255, 150, 150)  # Light red
-                else:  # Angle components (sin/cos)
-                    color = (200, 200, 255)  # Light blue for angles
-
-                draw_text(f"    {explanation}: {value:.3f}", font_small, color)
-            input_idx += 1
-        y_offset += 2  # Small gap between minerals
-
-    draw_text(
-        f"TOTAL INPUTS: {len(inputs_value)} (Expected: 28)",
-        font_medium,
-        (255, 255, 255),
-        True,
-    )
 
     # Store content height for scrolling
     debug_content_height = y_offset

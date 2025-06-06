@@ -135,19 +135,15 @@ def calculate_fitness(
     total_fuel_gain: float,
     backward_penalty: float,
     spinning_penalty: float,
-    stillness_bonus: float = 0.0,
-    danger_stillness_penalty: float = 0.0,
 ) -> float:
     """Calculate fitness score"""
     return (
         (alive_frames / 4)
         + total_fuel_gain
-        + ship.minerals * 20
+        + ship.minerals * 30
         + ship.fuel * 0.5
-        + stillness_bonus
         - backward_penalty
         - spinning_penalty
-        - danger_stillness_penalty
     )
 
 
@@ -240,36 +236,12 @@ def run_neat_simulation(
             if avg_angle_change_per_frame > 0.10:
                 spinning_penalty = (avg_angle_change_per_frame - 0.05) * 1000
 
-        # Calculate stillness bonus - much more conservative
-        stillness_ratio = (
-            still_frames / alive_frame_counter if alive_frame_counter > 0 else 0
-        )
-        # Reduce bonus and increase threshold
-        stillness_bonus = stillness_ratio * 5 if stillness_ratio > 0.8 else 0
-
-        # Add danger-based movement incentive
-        danger_level = 0
-        radar_scan_results = radar_scan(
-            ship, asteroids, n_directions=12, max_range=100.0
-        )
-        for _radar_result in radar_scan_results:
-            if _radar_result.distance < 50:  # Asteroid within 50 pixels
-                danger_level += (50 - _radar_result.distance) / 50
-
-        # Penalize stillness when in danger
-        danger_stillness_penalty = 0
-        if danger_level > 2 and stillness_ratio > 0.5:
-            danger_stillness_penalty = danger_level * stillness_ratio * 10
-        # Calculate current fitness
-
         current_fitness = calculate_fitness(
             ship,
             alive_frame_counter,
             total_fuel_gain,
             backward_penalty,
             spinning_penalty,
-            stillness_bonus,
-            danger_stillness_penalty,
         )
         # Visualization
         if visualizer and screen and clock:
