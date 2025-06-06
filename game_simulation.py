@@ -139,7 +139,6 @@ def calculate_fitness(
     return (
         (alive_frames / 4)
         + total_fuel_gain
-        + ship.minerals * 40
         + ship.fuel * 0.5
         # - backward_penalty
         # - spinning_penalty
