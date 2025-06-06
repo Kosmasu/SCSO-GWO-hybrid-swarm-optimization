@@ -140,7 +140,7 @@ def calculate_fitness(
     return (
         (alive_frames / 4)
         + total_fuel_gain
-        + ship.minerals * 30
+        + ship.minerals * 60
         + ship.fuel * 0.5
         - backward_penalty
         - spinning_penalty
@@ -274,6 +274,10 @@ def run_neat_simulation(
             result.spinning_penalty = spinning_penalty
 
             result.final_fitness = current_fitness
+            if death_reason == "asteroid_collision":
+                result.final_fitness -= 1000
+            if death_reason == "out_of_fuel":
+                result.final_fitness -= 500
             break
 
     return result
