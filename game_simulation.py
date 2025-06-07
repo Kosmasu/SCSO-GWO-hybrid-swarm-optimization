@@ -134,15 +134,21 @@ def calculate_fitness(
     ship: Spaceship,
     alive_frames: int,
     total_fuel_gain: float,
-    # backward_penalty: float,
-    # spinning_penalty: float,
+    backward_penalty: float = 0,
+    spinning_penalty: float = 0,
+    asteroid_near_miss_count: int = 0,
+    risky_mineral_mined_count: int = 0,
+    total_distance_traveled: float = 0.0,
 ) -> float:
     """Calculate fitness score"""
     return (
         (alive_frames / 4) 
         + (total_fuel_gain * 10)
-        # - backward_penalty
-        # - spinning_penalty
+        - backward_penalty
+        - spinning_penalty
+        - (asteroid_near_miss_count * 5)
+        - (risky_mineral_mined_count * 10)
+        - (total_distance_traveled * 0.1)
     )
 
 
@@ -177,6 +183,10 @@ def run_neat_simulation(
     total_movement_counter = 0
     total_angle_change = 0
     still_frames = 0  # Add stillness tracking
+
+    asteroid_near_miss_count = 0
+    risky_mineral_mined_count = 0
+    total_distance_traveled = 0.0
 
     if visualizer:
         visualizer.start_time = time.time()
@@ -218,29 +228,52 @@ def run_neat_simulation(
             if thrust_power < 0:
                 backward_movement_counter += 1
 
+        # --- Track distance traveled ---
+        dx = thrust_power * ship.speed * math.cos(ship.angle)
+        dy = thrust_power * ship.speed * math.sin(ship.angle)
+        total_distance_traveled += math.hypot(dx, dy)
+
+        # --- Asteroid near-miss detection ---
+        for asteroid in asteroids:
+            dist = math.hypot(ship.x - asteroid.x, ship.y - asteroid.y)
+            if dist < ship.radius + asteroid.radius + 30:  # 30 px buffer
+                asteroid_near_miss_count += 1
+                break  # Only count once per frame
+
+        # --- Risky mineral mining detection ---
+        for mineral in minerals:
+            if math.hypot(ship.x - mineral.x, ship.y - mineral.y) < ship.radius + mineral.radius:
+                # Check for nearby asteroid
+                for asteroid in asteroids:
+                    if math.hypot(mineral.x - asteroid.x, mineral.y - asteroid.y) < asteroid.radius + 40:
+                        risky_mineral_mined_count += 1
+                        break
+
         # Update game state
         fuel_gain = update_game_state(ship, minerals, asteroids, thrust_power, config)
         total_fuel_gain += fuel_gain
 
         # Calculate penalties
-        # backward_penalty = 0
+        backward_penalty = 0
         # if total_movement_counter > 50:
         #     backward_ratio = backward_movement_counter / total_movement_counter
         #     if backward_ratio > 0.5:
-        #         backward_penalty = (backward_ratio - 0.5) * 200
+        #         backward_penalty = (backward_ratio - 0.5) * 2000
 
-        # spinning_penalty = 0
-        # if alive_frame_counter > 100:
-        #     avg_angle_change_per_frame = total_angle_change / alive_frame_counter
-        #     if avg_angle_change_per_frame > 0.10:
-        #         spinning_penalty = (avg_angle_change_per_frame - 0.05) * 1000
+        spinning_penalty = 0
+        if alive_frame_counter > 100:
+            avg_angle_change_per_frame = total_angle_change / alive_frame_counter
+            if avg_angle_change_per_frame > 0.75:
+                spinning_penalty = 200
+
+        
 
         current_fitness = calculate_fitness(
             ship,
             alive_frame_counter,
             total_fuel_gain,
-            # backward_penalty,
-            # spinning_penalty,
+            backward_penalty,
+            spinning_penalty,
         )
         # Visualization
         if visualizer and screen and clock:
@@ -273,11 +306,11 @@ def run_neat_simulation(
 
             result.final_fitness = current_fitness
             if death_reason == "asteroid_collision":
-                result.final_fitness -= 250
+                result.final_fitness -= 150
             if death_reason == "out_of_fuel":
-                result.final_fitness -= 100
+                result.final_fitness -= 50
             if death_reason == "timeout":
-                result.final_fitness += 500
+                result.final_fitness += 200
             break
 
     return result
