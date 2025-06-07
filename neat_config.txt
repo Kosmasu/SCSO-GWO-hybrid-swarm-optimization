@@ -6,7 +6,7 @@ reset_on_extinction   = 1
 
 [DefaultGenome]
 num_inputs              = 27
-num_hidden              = 3
+num_hidden              = 0
 num_outputs             = 2
 initial_connection      = full_direct
 feed_forward            = True
@@ -48,7 +48,7 @@ enabled_default         = True
 enabled_mutate_rate     = 0.1
 
 [DefaultSpeciesSet]
-compatibility_threshold = 2.8
+compatibility_threshold = 2.7
 
 [DefaultStagnation]
 species_fitness_func = mean

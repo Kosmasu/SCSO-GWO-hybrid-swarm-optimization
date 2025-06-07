@@ -274,6 +274,9 @@ def run_neat_simulation(
             total_fuel_gain,
             backward_penalty,
             spinning_penalty,
+            asteroid_near_miss_count,
+            risky_mineral_mined_count,
+            total_distance_traveled,
         )
         # Visualization
         if visualizer and screen and clock:
