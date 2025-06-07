@@ -392,10 +392,9 @@ class RadarScanResult(BaseModel):
     distance: float
     angle: float
 
-
 def radar_scan(
-    ship,
-    objects,
+    ship: Spaceship,
+    objects: list[Mineral | Asteroid],
     n_directions: int = 24,
     max_range: float = 300.0,
 ) -> list[RadarScanResult]:
@@ -415,9 +414,8 @@ def radar_scan(
         closest_dist = max_range
 
         for obj in objects:
-            # Vector from ship to object
-            ox = obj.x - ship.x
-            oy = obj.y - ship.y
+            # Use wrapped distance and direction
+            _, ox, oy = calculate_wrapped_distance(ship.x, ship.y, obj.x, obj.y)
 
             # Project object vector onto radar direction
             proj_len = ox * dx + oy * dy  # scalar projection
@@ -426,15 +424,15 @@ def radar_scan(
                 continue  # object is behind or too far
 
             # Closest point on the radar line to the object's center
-            closest_x = ship.x + dx * proj_len
-            closest_y = ship.y + dy * proj_len
+            closest_x = ox - dx * proj_len
+            closest_y = oy - dy * proj_len
 
             # Distance from object center to radar line
-            dist_to_line = math.hypot(obj.x - closest_x, obj.y - closest_y)
+            dist_to_line = math.hypot(ox - dx * proj_len, oy - dy * proj_len)
 
             total_radius = ship.radius + obj.radius
             if dist_to_line <= total_radius:
-                # Fix: Use Pythagoras to compute actual hit distance from ship to surface
+                # Use Pythagoras to compute actual hit distance from ship to surface
                 offset = math.sqrt(max(total_radius**2 - dist_to_line**2, 0))
                 hit_distance = proj_len - offset
 
@@ -445,7 +443,6 @@ def radar_scan(
         results.append(RadarScanResult(angle=relative_angle_rad, distance=closest_dist))
 
     return results
-
 
 class MineralRiskInfo(BaseModel):
     mineral: Mineral

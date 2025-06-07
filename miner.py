@@ -145,7 +145,7 @@ def main():
 
     # Customize first asteroid for testing
     asteroids[0].speed_x, asteroids[0].speed_y = 0, 0
-    asteroids[0].x, asteroids[0].y = WIDTH // 2, HEIGHT // 2
+    asteroids[0].x, asteroids[0].y = WIDTH - 50, HEIGHT - 50
     asteroids[0].radius = 20
 
     running = True
