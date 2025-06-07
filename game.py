@@ -355,7 +355,7 @@ def get_closest_asteroid_info(
                 velocity_angle=velocity_angle_relative,
                 velocity_magnitude=velocity_magnitude,
                 future_positions=future_positions,
-                radius=asteroid.radius
+                radius=asteroid.radius,
             )
         )
 
@@ -394,65 +394,58 @@ class RadarScanResult(BaseModel):
 
 
 def radar_scan(
-    ship: Spaceship,
-    objects: list[Asteroid] | list[Mineral],
+    ship,
+    objects,
     n_directions: int = 24,
     max_range: float = 300.0,
 ) -> list[RadarScanResult]:
-    radar_results: list[RadarScanResult] = []
-
-    # Calculate angle step for each direction
-    angle_step = 2 * math.pi / n_directions
+    results = []
+    angle_step = 2 * math.pi / n_directions  # Use radians for consistency
 
     for i in range(n_directions):
-        # Calculate radar beam angle RELATIVE to ship's facing direction
-        relative_radar_angle = i * angle_step
-        absolute_radar_angle = ship.angle + relative_radar_angle
+        # Calculate relative angle from ship's heading
+        relative_angle_rad = (i * angle_step) - math.pi  # Range: -π to π
 
-        # Direction vector for this radar beam (in absolute coordinates)
-        beam_dx = math.cos(absolute_radar_angle)
-        beam_dy = math.sin(absolute_radar_angle)
+        # Calculate absolute direction based on ship's heading + relative angle
+        absolute_angle_rad = ship.angle + relative_angle_rad
 
-        closest_distance = max_range
+        dx = math.cos(absolute_angle_rad)
+        dy = math.sin(absolute_angle_rad)
 
-        # Check each asteroid
-        for asteroid in objects:
-            # Get vector from ship to asteroid (considering wrapping)
-            distance, dx, dy = calculate_wrapped_distance(
-                ship.x, ship.y, asteroid.x, asteroid.y
-            )
+        closest_dist = max_range
 
-            # Skip if asteroid is beyond max range
-            if distance > max_range:
-                continue
+        for obj in objects:
+            # Vector from ship to object
+            ox = obj.x - ship.x
+            oy = obj.y - ship.y
 
-            # Normalize the direction vector to asteroid
-            if distance > 0:
-                asteroid_dx = dx / distance
-                asteroid_dy = dy / distance
+            # Project object vector onto radar direction
+            proj_len = ox * dx + oy * dy  # scalar projection
 
-                # Calculate dot product to see if asteroid is in this radar direction
-                dot_product = beam_dx * asteroid_dx + beam_dy * asteroid_dy
+            if proj_len <= 0 or proj_len > max_range:
+                continue  # object is behind or too far
 
-                # Calculate the angular tolerance (half the angle between adjacent beams)
-                angular_tolerance = math.cos(angle_step / 2)
+            # Closest point on the radar line to the object's center
+            closest_x = ship.x + dx * proj_len
+            closest_y = ship.y + dy * proj_len
 
-                # If asteroid is within the radar beam cone
-                if dot_product >= angular_tolerance:
-                    # Calculate surface-to-surface distance (distance to edge of asteroid)
-                    surface_distance = max(0, distance - ship.radius - asteroid.radius)
+            # Distance from object center to radar line
+            dist_to_line = math.hypot(obj.x - closest_x, obj.y - closest_y)
 
-                    # Keep track of the closest obstacle in this direction
-                    closest_distance = min(closest_distance, surface_distance)
+            total_radius = ship.radius + obj.radius
+            if dist_to_line <= total_radius:
+                # Fix: Use Pythagoras to compute actual hit distance from ship to surface
+                offset = math.sqrt(max(total_radius**2 - dist_to_line**2, 0))
+                hit_distance = proj_len - offset
 
-        radar_results.append(
-            RadarScanResult(
-                distance=closest_distance,
-                angle=relative_radar_angle,  # Store relative angle
-            )
-        )
+                if 0 < hit_distance < closest_dist:
+                    closest_dist = hit_distance
 
-    return radar_results
+        # Store relative angle in radians
+        results.append(RadarScanResult(angle=relative_angle_rad, distance=closest_dist))
+
+    return results
+
 
 class MineralRiskInfo(BaseModel):
     mineral: Mineral
@@ -467,7 +460,7 @@ def calculate_mineral_risk(
     ship: Spaceship,
     mineral: Mineral,
     asteroids: list[Asteroid],
-    future_frames: list[int] = [30, 60, 90]
+    future_frames: list[int] = [30, 60, 90],
 ) -> tuple[float, dict[str, float]]:
     """
     Calculate risk score for mining a specific mineral.
@@ -475,7 +468,7 @@ def calculate_mineral_risk(
     Higher score = more dangerous
     """
     risk_factors = {}
-    
+
     # 1. Current collision risk - Is mineral currently touching an asteroid?
     current_collision_risk = 0
     for asteroid in asteroids:
@@ -486,76 +479,76 @@ def calculate_mineral_risk(
             current_collision_risk = 1000  # Extremely high risk
             break
     risk_factors["current_collision"] = current_collision_risk
-    
+
     # 2. Proximity risk - Count asteroids near the mineral
     proximity_risk = 0
     danger_radius = 60
     nearby_asteroids = count_asteroids_in_radius(mineral, asteroids, danger_radius)
     proximity_risk = len(nearby_asteroids) * 50
     risk_factors["proximity"] = proximity_risk
-    
+
     # 3. Path obstruction risk
     path_obstruction_risk = 0
     ship_to_mineral_distance, dx, dy = calculate_wrapped_distance(
         ship.x, ship.y, mineral.x, mineral.y
     )
-    
+
     if ship_to_mineral_distance > 0:
         path_dx = dx / ship_to_mineral_distance
         path_dy = dy / ship_to_mineral_distance
-        
+
         for asteroid in asteroids:
             asteroid_distance, asteroid_dx, asteroid_dy = calculate_wrapped_distance(
                 ship.x, ship.y, asteroid.x, asteroid.y
             )
-            
+
             if asteroid_distance > 0 and asteroid_distance < ship_to_mineral_distance:
                 asteroid_dir_x = asteroid_dx / asteroid_distance
                 asteroid_dir_y = asteroid_dy / asteroid_distance
-                
+
                 dot_product = path_dx * asteroid_dir_x + path_dy * asteroid_dir_y
-                
+
                 if dot_product > 0.8:
                     cross_product = abs(path_dx * asteroid_dy - path_dy * asteroid_dx)
                     path_distance = cross_product * asteroid_distance
-                    
+
                     if path_distance < asteroid.radius + ship.radius + 20:
                         path_obstruction_risk += 100
-    
+
     risk_factors["path_obstruction"] = path_obstruction_risk
-    
+
     # 4. Future collision risk
     future_collision_risk = 0
     for frames in future_frames:
         for asteroid in asteroids:
             future_x = (asteroid.x + asteroid.speed_x * frames) % WIDTH
             future_y = (asteroid.y + asteroid.speed_y * frames) % HEIGHT
-            
+
             future_distance, _, _ = calculate_wrapped_distance(
                 mineral.x, mineral.y, future_x, future_y
             )
-            
+
             if future_distance <= mineral.radius + asteroid.radius + 10:
                 time_weight = 1.0 / (frames / 30.0)
                 future_collision_risk += 200 * time_weight
-    
+
     risk_factors["future_collision"] = future_collision_risk
-    
+
     # 5. Escape route risk
     escape_risk = 0
     escape_directions = 8
     blocked_directions = 0
-    
+
     for i in range(escape_directions):
         escape_angle = (2 * math.pi * i) / escape_directions
         escape_distance = 50
-        
+
         escape_x = mineral.x + escape_distance * math.cos(escape_angle)
         escape_y = mineral.y + escape_distance * math.sin(escape_angle)
-        
+
         escape_x = escape_x % WIDTH
         escape_y = escape_y % HEIGHT
-        
+
         for asteroid in asteroids:
             distance, _, _ = calculate_wrapped_distance(
                 escape_x, escape_y, asteroid.x, asteroid.y
@@ -563,23 +556,23 @@ def calculate_mineral_risk(
             if distance <= asteroid.radius + ship.radius + 15:
                 blocked_directions += 1
                 break
-    
+
     escape_risk = (blocked_directions / escape_directions) * 150
     risk_factors["escape_route"] = escape_risk
-    
+
     # 6. Distance penalty
     distance_risk = ship_to_mineral_distance * 0.5
     risk_factors["distance"] = distance_risk
-    
+
     # 7. Asteroid velocity risk
     velocity_risk = 0
     for asteroid in nearby_asteroids:
         asteroid_speed = math.sqrt(asteroid.speed_x**2 + asteroid.speed_y**2)
         velocity_risk += asteroid_speed * 10
     risk_factors["velocity"] = velocity_risk
-    
+
     total_risk = sum(risk_factors.values())
-    
+
     return total_risk, risk_factors
 
 
@@ -588,17 +581,17 @@ def get_safest_minerals(
     minerals: list[Mineral],
     asteroids: list[Asteroid],
     max_risk_threshold: float = None,  # Remove fixed threshold
-    top_n: int = 3
+    top_n: int = 3,
 ) -> list[MineralRiskInfo]:
     """
     Get the safest minerals to mine, sorted by risk score with proper normalization.
     """
     if not minerals:
         return []
-    
+
     mineral_risks = []
     risk_scores = []  # Collect all risk scores for normalization
-    
+
     # First pass: calculate all risk scores
     for mineral in minerals:
         distance, _, _ = calculate_wrapped_distance(
@@ -607,18 +600,20 @@ def get_safest_minerals(
         relative_angle = calculate_relative_angle(
             ship.angle, ship.x, ship.y, mineral.x, mineral.y
         )
-        
+
         risk_score, risk_factors = calculate_mineral_risk(ship, mineral, asteroids)
         risk_scores.append(risk_score)
-        
-        mineral_risks.append({
-            'mineral': mineral,
-            'distance': distance,
-            'relative_angle': relative_angle,
-            'risk_score': risk_score,
-            'risk_factors': risk_factors
-        })
-    
+
+        mineral_risks.append(
+            {
+                "mineral": mineral,
+                "distance": distance,
+                "relative_angle": relative_angle,
+                "risk_score": risk_score,
+                "risk_factors": risk_factors,
+            }
+        )
+
     # Calculate normalization parameters
     if risk_scores:
         min_risk = min(risk_scores)
@@ -626,30 +621,37 @@ def get_safest_minerals(
         risk_range = max_risk - min_risk if max_risk > min_risk else 1.0
     else:
         min_risk = max_risk = risk_range = 0
-    
+
     # Second pass: create normalized MineralRiskInfo objects
     normalized_mineral_risks = []
     for mineral_data in mineral_risks:
         # Normalize risk score to [0, 1] where 0 = highest risk, 1 = lowest risk
         if risk_range > 0:
-            normalized_risk = 1.0 - ((mineral_data['risk_score'] - min_risk) / risk_range)
+            normalized_risk = 1.0 - (
+                (mineral_data["risk_score"] - min_risk) / risk_range
+            )
         else:
             normalized_risk = 1.0  # All minerals have same risk
-        
+
         # Apply threshold filtering if specified
-        if max_risk_threshold is not None and mineral_data['risk_score'] > max_risk_threshold:
+        if (
+            max_risk_threshold is not None
+            and mineral_data["risk_score"] > max_risk_threshold
+        ):
             continue
-            
-        normalized_mineral_risks.append(MineralRiskInfo(
-            mineral=mineral_data['mineral'],
-            distance=mineral_data['distance'],
-            relative_angle=mineral_data['relative_angle'],
-            risk_score=mineral_data['risk_score'],
-            risk_factors=mineral_data['risk_factors'],
-            normalized_risk=normalized_risk
-        ))
-    
+
+        normalized_mineral_risks.append(
+            MineralRiskInfo(
+                mineral=mineral_data["mineral"],
+                distance=mineral_data["distance"],
+                relative_angle=mineral_data["relative_angle"],
+                risk_score=mineral_data["risk_score"],
+                risk_factors=mineral_data["risk_factors"],
+                normalized_risk=normalized_risk,
+            )
+        )
+
     # Sort by risk score (lowest first = safest first)
     normalized_mineral_risks.sort(key=lambda x: x.risk_score)
-    
+
     return normalized_mineral_risks[:top_n]

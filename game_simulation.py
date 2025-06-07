@@ -3,6 +3,7 @@ import time
 import pygame
 from typing import Tuple, List, Callable
 from game import Asteroid, Mineral, Spaceship
+
 # from miner_harness import Asteroid, Mineral, Spaceship
 from data import BLACK
 
@@ -45,7 +46,7 @@ def handle_thrusting(output: List[float]) -> float:
     """Handle thrusting based on neural network output"""
     thrust_output = output[1]
     if thrust_output < -0.3:
-        return ((thrust_output + 0.3) / 0.7) * 0.8  # Full backward
+        return (thrust_output + 0.3) / 0.7  # Full backward
     elif thrust_output >= -0.3 and thrust_output <= 0.3:
         return 0  # No thrust
     else:
@@ -138,8 +139,8 @@ def calculate_fitness(
 ) -> float:
     """Calculate fitness score"""
     return (
-        (alive_frames / 4)
-        + total_fuel_gain * 10
+        (alive_frames / 4) 
+        + (total_fuel_gain * 10)
         # - backward_penalty
         # - spinning_penalty
     )
@@ -272,9 +273,11 @@ def run_neat_simulation(
 
             result.final_fitness = current_fitness
             if death_reason == "asteroid_collision":
-                result.final_fitness -= 1000
+                result.final_fitness -= 250
             if death_reason == "out_of_fuel":
-                result.final_fitness -= 500
+                result.final_fitness -= 100
+            if death_reason == "timeout":
+                result.final_fitness += 500
             break
 
     return result

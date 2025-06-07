@@ -144,8 +144,9 @@ def main():
     ship.fuel = 999999999
 
     # Customize first asteroid for testing
-    asteroids[0].speed_x, asteroids[0].speed_y = 2.0, 2.0
-    asteroids[0].x, asteroids[0].y = 0, HEIGHT - 1
+    asteroids[0].speed_x, asteroids[0].speed_y = 0, 0
+    asteroids[0].x, asteroids[0].y = WIDTH // 2, HEIGHT // 2
+    asteroids[0].radius = 20
 
     running = True
     debug_mode = False
@@ -231,7 +232,7 @@ def main():
             dist = math.hypot(ship.x - asteroid.x, ship.y - asteroid.y)
             if dist < ship.radius + asteroid.radius:
                 # running = False
-                print("Collision with asteroid! Game Over!")
+                print(f"{alive_time}. {dist}: Collision with asteroid! Game Over!")
 
         # Draw everything
         for mineral in minerals:
@@ -248,7 +249,7 @@ def main():
                 debug_screen, WHITE, (int(ship.x), int(ship.y)), 200, 1
             )  # Max radar range
 
-            # RADAR SCAN VISUALIZATION            # RADAR SCAN VISUALIZATION
+            # RADAR SCAN VISUALIZATION
             N_DIRECTIONS = 12  # Number of radar directions
             MAX_RANGE = 200.0  # Maximum radar range
             radar_scan_results: list[RadarScanResult] = radar_scan(
@@ -256,11 +257,11 @@ def main():
             )
 
             for i, result in enumerate(radar_scan_results):
-                # Calculate absolute angle for visualization
+                # Calculate absolute angle for visualization (ship.angle + relative_angle)
                 absolute_angle = ship.angle + result.angle
 
                 # Calculate end point based on surface distance + ship radius
-                actual_beam_distance = result.distance + ship.radius
+                actual_beam_distance = result.distance
 
                 if result.distance < MAX_RANGE:
                     # Found an asteroid - draw red line to collision point
