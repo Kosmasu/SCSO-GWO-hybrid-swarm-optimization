@@ -148,7 +148,7 @@ def calculate_fitness(
         - spinning_penalty
         - (asteroid_near_miss_count * 5)
         - (risky_mineral_mined_count * 10)
-        - (total_distance_traveled * 0.1)
+        - (total_distance_traveled * 0.2)
     )
 
 
