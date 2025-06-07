@@ -56,7 +56,7 @@ def get_neat_inputs(
             asteroid: AsteroidInfo = closest_asteroids[i]
 
             # 1. Current position and distance
-            current_distance = 1.0 - 2.0 * (asteroid.distance / MAX_DISTANCE)  # [-1, 1]
+            current_distance = max(0.0, 1.0 - (asteroid.distance / MAX_DISTANCE))
             current_angle_sin = math.sin(asteroid.relative_angle)
             current_angle_cos = math.cos(asteroid.relative_angle)
 

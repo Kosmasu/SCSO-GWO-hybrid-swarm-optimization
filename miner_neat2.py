@@ -1,6 +1,5 @@
 ﻿import pickle
 import pygame
-import math
 import os
 import neat
 import time
@@ -13,7 +12,7 @@ from game_simulation import (
     run_neat_simulation,
 )
 
-from input_functions._2_1mineral_1asteroid_info import get_neat_inputs
+from input_functions._1_radar import get_neat_inputs
 
 if not pygame.get_init():
     pygame.init()
