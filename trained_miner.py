@@ -54,7 +54,7 @@ def run_with_trained_model():
                         config_file)
 
     # Load the trained model
-    genome = load_trained_model('output/neat/20250606-235226/best_genome_gen_98_fitness_1102.1.pkl')
+    genome = load_trained_model('output/neat/20250608-001402/best_genome_gen_1061_fitness_68944.3.pkl')
     
     # Create the neural network
     net = neat.nn.FeedForwardNetwork.create(genome, config)
@@ -62,7 +62,7 @@ def run_with_trained_model():
     # Create simulation config
     sim_config = SimulationConfig()
     sim_config.num_minerals = 5
-    sim_config.num_asteroids = 8
+    sim_config.num_asteroids = 10
     sim_config.visualization_fps = 60
     
     # Create visualizer

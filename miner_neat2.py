@@ -160,13 +160,13 @@ def eval_genomes(genomes, config):
     visualizer.update_generation(best_in_generation)
 
     # Visualize the best genome from this generation (every 5th generation)
-    if best_in_generation and visualizer.generation % 5 == 0:
-        print(
-            f"Displaying generation {visualizer.generation} best (Fitness: {best_fitness:.1f})"
-        )
-        run_simulation(
-            best_in_generation, config, visualizer=visualizer
-        )  # With visualization
+    # if best_in_generation and visualizer.generation % 5 == 0:
+    #     print(
+    #         f"Displaying generation {visualizer.generation} best (Fitness: {best_fitness:.1f})"
+    #     )
+    #     run_simulation(
+    #         best_in_generation, config, visualizer=visualizer
+    #     )  # With visualization
 
 
 def run_neat(config_file: str, output_dir: str, continue_from_checkpoint: bool = False):

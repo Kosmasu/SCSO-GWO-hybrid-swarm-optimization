@@ -44,7 +44,7 @@ class Spaceship:
                 self.minerals += 1
                 self.fuel = min(100, self.fuel + 10)  # Refuel when mining
 
-    def draw(self):
+    def draw(self, screen) -> None:
         pygame.draw.circle(screen, BLUE, (int(self.x), int(self.y)), self.radius)
         # Draw a triangle for direction
         points = [
@@ -74,7 +74,7 @@ class Mineral:
         self.x, self.y = Mineral.get_next_coord()  # Get next fixed coordinate
         self.radius = 10
 
-    def draw(self):
+    def draw(self, screen) -> None:
         pygame.draw.circle(screen, BLUE, (self.x, self.y), self.radius)
 
 # Asteroids (Obstacles)
@@ -107,7 +107,7 @@ class Asteroid:
         self.x = (self.x + self.speed_x) % WIDTH
         self.y = (self.y + self.speed_y) % HEIGHT
 
-    def draw(self):
+    def draw(self, screen) -> None:
         pygame.draw.circle(screen, RED, (int(self.x), int(self.y)), self.radius)
 
 # Game Setup

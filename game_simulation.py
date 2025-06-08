@@ -2,9 +2,11 @@ import math
 import time
 import pygame
 from typing import Tuple, List, Callable
-from game import Asteroid, Mineral, Spaceship
+#from game import Asteroid, Mineral, Spaceship
 
-# from miner_harness import Asteroid, Mineral, Spaceship
+#from miner_harness import Asteroid, Mineral, Spaceship
+#from miner_harness2 import Asteroid, Mineral, Spaceship
+from miner_harness3 import Asteroid, Mineral, Spaceship
 from data import BLACK
 
 
@@ -143,12 +145,13 @@ def calculate_fitness(
     """Calculate fitness score"""
     return (
         (alive_frames / 4) 
-        + (total_fuel_gain * 10)
-        - backward_penalty
-        - spinning_penalty
-        - (asteroid_near_miss_count * 5)
-        - (risky_mineral_mined_count * 10)
-        - (total_distance_traveled * 0.2)
+        + ship.minerals * 100
+        # + (total_fuel_gain * 10)
+        # - backward_penalty
+        # - spinning_penalty
+        # - (asteroid_near_miss_count * 5)
+        # - (risky_mineral_mined_count * 10)
+        # - (total_distance_traveled * 0.1)
     )
 
 
